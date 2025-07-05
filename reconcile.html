@@ -1,0 +1,176 @@
+<div class="row text-left">
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'reconciled_statement_date',
+                'fieldLabel'                     : 'Reconcile Statement Date',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Reconcile Statement Date',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'reconciled_starting_balance',
+                'fieldLabel'                     : 'Reconcile Starting Balance',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Reconcile Starting Balance',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'reconciled_ending_balance',
+                'fieldLabel'                     : 'Reconcile Ending Balance',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Reconcile Ending Balance',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'reconciled_balance',
+                'fieldLabel'                     : 'Reconciled Balance',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Reconciled Balance',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'reconciled_difference',
+                'fieldLabel'                     : 'Difference',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Difference',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+</div>
+<hr>
+<div class="row vdivide">
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'reconcile_debit_transactions',
+                'fieldLabel'                     : 'Debit',
+                'fieldType'                      : 'html',
+                'fieldAdditionalClass'           : 'mb-0',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Debit Transactions to reconcile for the account',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               :
+                    '<div class="row">' ~
+                    '    <div class="col">' ~
+                    '        <table id="' ~ componentId ~ '-' ~ sectionId ~ '-reconcile-debit-transactions-table" class="table height-control-400 table-sm table-hover responsive nowrap mb-0" width="100%" cellspacing="0">' ~
+                    '            <thead>' ~
+                    '                <tr>' ~
+                    '                    <th class="text-uppercase">ID</th>' ~
+                    '                    <th class="text-uppercase">Date</th>' ~
+                    '                    <th class="text-uppercase">Seq</th>' ~
+                    '                    <th class="text-uppercase">Description</th>' ~
+                    '                    <th class="text-uppercase">Reconcile</th>' ~
+                    '                    <th class="text-uppercase">Amount</th>' ~
+                    '                </tr>' ~
+                    '            </thead>' ~
+                    '            <tbody>' ~
+                    '            </tbody>' ~
+                    '        </table>' ~
+                    '    </div>' ~
+                    '</div>'
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'reconcile_credit_transactions',
+                'fieldLabel'                     : 'Credit',
+                'fieldType'                      : 'html',
+                'fieldAdditionalClass'           : 'mb-0',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Credit Transactions to reconcile for the account',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               :
+                    '<div class="row">' ~
+                    '    <div class="col">' ~
+                    '        <table id="' ~ componentId ~ '-' ~ sectionId ~ '-reconcile-credit-transactions-table" class="table height-control-400 table-sm table-hover responsive nowrap mb-0" width="100%" cellspacing="0">' ~
+                    '            <thead>' ~
+                    '                <tr>' ~
+                    '                    <th class="text-uppercase">ID</th>' ~
+                    '                    <th class="text-uppercase">Date</th>' ~
+                    '                    <th class="text-uppercase">Seq</th>' ~
+                    '                    <th class="text-uppercase">Description</th>' ~
+                    '                    <th class="text-uppercase">Reconcile</th>' ~
+                    '                    <th class="text-uppercase">Amount</th>' ~
+                    '                </tr>' ~
+                    '            </thead>' ~
+                    '            <tbody>' ~
+                    '            </tbody>' ~
+                    '        </table>' ~
+                    '    </div>' ~
+                    '</div>'
+            ]
+        )}}
+    </div>
+</div>

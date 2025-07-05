@@ -1,0 +1,85 @@
+<div class="row">
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                     : component,
+                'componentName'                 : componentName,
+                'componentId'                   : componentId,
+                'sectionId'                     : sectionId,
+                'fieldId'                       : 'upload_attachments',
+                'fieldType'                     : 'files/dropzone',
+                'fieldLabel'                    : false,
+                'fieldDropzoneLabel'            : 'Upload Attachments',
+                'fieldRequired'                 : false,
+                'fieldHelp'                     : true,
+                'fieldHelpTooltipContent'       : 'Max: 5. Upload attachments like receipts, invoices, etc. You can zip an upload more files.',
+                'fieldAdditionalClass'          : 'mb-1',
+                'fieldBazScan'                  : true,
+                'fieldBazPostOnCreate'          : false,
+                'fieldBazPostOnUpdate'          : false,
+                'attachments'                   : [],
+                'maxAttachments'                : 5,
+                'storage'                       : storage,
+                'noPreview'                     : true,
+                'setOrphan'                     : false,
+                'upload'                        : true,
+                'allowedFileMimeType'           : 'application/zip'
+            ]
+        )}}
+    </div>
+</div>
+<div class="row">
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'transaction_attachments',
+                'fieldLabel'                     : 'Attachments',
+                'fieldType'                      : 'select2',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Select database that you want to restore. If there is none in the list, you can upload a database file.',
+                'fieldBazScan'                   : true,
+                'fieldRequired'                  : true,
+                'fieldBazPostOnUpdate'           : false,
+                'fieldDataSelect2Options'        : [],
+                'fieldDataSelect2OptionsKey'     : 'uuid',
+                'fieldDataSelect2OptionsValue'   : 'org_file_name',
+                'fieldDataSelect2OptionsArray'   : true,
+                'fieldDataSelect2OptionsSelected': ''
+            ]
+        )}}
+    </div>
+</div>
+<div class="row">
+    <div class="col text-center">
+        {{adminltetags.useTag('buttons',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'buttonType'                     : 'button',
+                'buttons'                        :
+                    [
+                        'remove-attachment'    : [
+                            'title'                   : 'remove',
+                            'size'                    : 'xs',
+                            'disabled'                : true,
+                            'type'                    : 'danger',
+                            'icon'                    : 'times'
+                        ],
+                        'download-attachment'    : [
+                            'title'                   : 'download',
+                            'size'                    : 'xs',
+                            'disabled'                : true,
+                            'icon'                    : 'download',
+                            'url'                     : '#'
+                        ]
+                    ]
+            ]
+        )}}
+    </div>
+</div>

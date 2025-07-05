@@ -1,0 +1,257 @@
+<div class="row text-left">
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'split_from_account',
+                'fieldLabel'                     : 'From Account',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'From Account',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'split_transactions_date',
+                'fieldLabel'                     : 'Transactions Date',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Transactions Date',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'split_total',
+                'fieldLabel'                     : 'Total Amount',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Total Amount',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'split_transactions_total',
+                'fieldLabel'                     : 'Transactions Total',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Transactions Total',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+</div>
+<hr>
+<div id="{{componentId}}-{{sectionId}}-account-transactions">
+    {% include 'books/transactionsplitstable.html' %}
+</div>
+<div class="row">
+    <div class="col pr-0" style="max-width: 5rem;">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                             : component,
+                'componentName'                         : componentName,
+                'componentId'                           : componentId,
+                'sectionId'                             : sectionId,
+                'fieldId'                               : 'split_transaction_id',
+                'fieldLabel'                            : 'ID',
+                'fieldType'                             : 'input',
+                'fieldHelp'                             : false,
+                'fieldHelpTooltipContent'               : 'Id of split Transaction',
+                'fieldRequired'                         : true,
+                'fieldDiabled'                          : true,
+                'fieldHidden'                           : true,
+                'fieldBazScan'                          : true,
+                'fieldBazPostOnCreate'                  : false,
+                'fieldBazPostOnUpdate'                  : false,
+                'fieldValue'                            : ''
+            ]
+        )}}
+        {{adminltetags.useTag('fields',
+            [
+                'component'                             : component,
+                'componentName'                         : componentName,
+                'componentId'                           : componentId,
+                'sectionId'                             : sectionId,
+                'fieldId'                               : 'split_transaction_seq',
+                'fieldLabel'                            : 'seq',
+                'fieldType'                             : 'input',
+                'fieldInputTypeTextFilter'              : 'positiveInt',
+                'fieldHelp'                             : false,
+                'fieldHelpTooltipContent'               : 'Transaction sequence.',
+                'fieldRequired'                         : false,
+                'fieldBazScan'                          : true,
+                'fieldBazPostOnCreate'                  : false,
+                'fieldBazPostOnUpdate'                  : false,
+                'fieldBazJstreeSearch'                  : true,
+                'fieldDataInputMinNumber'               : 0,
+                'fieldDataInputMaxNumber'               : 99,
+                'fieldDataInputMaxLength'               : 2,
+                'fieldValue'                            : ''
+            ]
+        )}}
+    </div>
+    <div class="col p-0" style="min-width: 35rem;">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'split_transaction_description',
+                'fieldLabel'                     : 'Description',
+                'fieldType'                      : 'select2',
+                'fieldHelp'                      : false,
+                'fieldHelpTooltipContent'        : 'Transaction Description.',
+                'fieldRequired'                  : true,
+                'fieldBazScan'                   : true,
+                'fieldBazJstreeSearch'           : false,
+                'fieldBazPostOnCreate'           : false,
+                'fieldBazPostOnUpdate'           : false,
+                'fieldDataSelect2OptionsArray'   : true,
+                'fieldDataSelect2Create'         : true,
+                'fieldDataSelect2Options'        : [],
+                'fieldDataSelect2OptionsKey'     : 'id',
+                'fieldDataSelect2OptionsValue'   : 'name',
+                'fieldDataSelect2OptionsSelected': ''
+            ]
+        )}}
+    </div>
+    <div class="col p-0" style="max-width: 25rem;">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                             : component,
+                'componentName'                         : componentName,
+                'componentId'                           : componentId,
+                'sectionId'                             : sectionId,
+                'fieldId'                               : 'split_accounts_list',
+                'fieldLabel'                            : 'To Account',
+                'fieldType'                             : 'select2',
+                'fieldHelp'                             : false,
+                'fieldHelpTooltipContent'               : 'To/From Account',
+                'fieldRequired'                         : true,
+                'fieldBazScan'                          : true,
+                'fieldBazPostOnCreate'                  : false,
+                'fieldBazPostOnUpdate'                  : false,
+                'fieldBazJstreeSearch'                  : true,
+                'fieldDataSelect2Options'               : accountsList,
+                'fieldDataSelect2OptionsKey'            : 'id',
+                'fieldDataSelect2OptionsValue'          : 'path',
+                'fieldDataSelect2OptionsArray'          : true,
+                'fieldDataSelect2OptionsSelected'       : ''
+            ]
+        )}}
+    </div>
+    <div class="col pl-0 pr-1" style="max-width: 10rem;">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                             : component,
+                'componentName'                         : componentName,
+                'componentId'                           : componentId,
+                'sectionId'                             : sectionId,
+                'fieldId'                               : 'split_transaction_amount',
+                'fieldLabel'                            : currencySymbol ~ ' Amount',
+                'fieldType'                             : 'input',
+                'fieldInputTypeTextFilter'              : 'positiveCurrency',
+                'fieldHelp'                             : false,
+                'fieldHelpTooltipContent'               : 'Transaction Amount.',
+                'fieldGroupPostAddonButtons'            :
+                    [
+                        'add-split-transaction'   : [
+                            'title'                   : false,
+                            'icon'                    : 'plus',
+                            'buttonAdditionalClass'   : 'rounded-0',
+                            'tooltipPosition'         : 'top',
+                            'tooltipTitle'            : 'Add/Edit'
+                        ]
+                    ],
+                'fieldRequired'                         : true,
+                'fieldBazScan'                          : true,
+                'fieldBazPostOnCreate'                  : false,
+                'fieldBazPostOnUpdate'                  : false,
+                'fieldBazJstreeSearch'                  : true,
+                'fieldDataInputMinNumber'               : 1,
+                'fieldValue'                            : ''
+            ]
+        )}}
+    </div>
+</div>
+<div class="row">
+    <div class="col">
+        {{adminltetags.useTag('buttons',
+            [
+            'component'                     : component,
+            'componentName'                 : componentName,
+            'componentId'                   : componentId,
+            'parentComponentId'             : parent,
+            'sectionId'                     : sectionId,
+            'buttonType'                    : 'button',
+            'buttons'                       :
+                [
+                    'delete-split-transaction'   : [
+                        'title'                   : 'Delete Transaction',
+                        'icon'                    : 'trash',
+                        'disabled'                : true,
+                        'position'                : 'right',
+                        'type'                    : 'danger',
+                        'buttonAdditionalClass'   : 'rounded-0',
+                        'tooltipPosition'         : 'top',
+                        'tooltipTitle'            : 'Remove'
+                    ],
+                    'clone-split-transaction'   : [
+                        'title'                   : 'Clone Transaction',
+                        'icon'                    : 'copy',
+                        'disabled'                : true,
+                        'position'                : 'right',
+                        'buttonAdditionalClass'   : 'rounded-0',
+                        'tooltipPosition'         : 'top',
+                        'tooltipTitle'            : 'Clone'
+                    ],
+                    'clear-split-transaction'   : [
+                        'title'                   : 'Clear Form',
+                        'icon'                    : 'eraser',
+                        'type'                    : 'secondary',
+                        'buttonAdditionalClass'   : 'rounded-0',
+                        'tooltipPosition'         : 'top',
+                        'tooltipTitle'            : 'Clear'
+                    ]
+                ]
+            ]
+        )}}
+    </div>
+</div>

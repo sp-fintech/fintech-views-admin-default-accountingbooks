@@ -1,0 +1,177 @@
+<div class="row text-left">
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'account_name',
+                'fieldLabel'                     : 'Name',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Name',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'account_path',
+                'fieldLabel'                     : 'Path',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Path',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'account_balance',
+                'fieldLabel'                     : 'Balance',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Balance',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'balance_to_reconcile',
+                'fieldLabel'                     : 'Balance to reconcile',
+                'fieldType'                      : 'html',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Balance to reconcile',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               : ''
+            ]
+        )}}
+    </div>
+</div>
+<div id="reconcile-div">
+    <div class="row">
+        <div class="col pr-0" style="max-width: 50%;">
+            {{adminltetags.useTag('fields',
+                [
+                    'component'                             : component,
+                    'componentName'                         : componentName,
+                    'componentId'                           : componentId,
+                    'sectionId'                             : sectionId,
+                    'fieldId'                               : 'reconcile_date',
+                    'fieldLabel'                            : 'Reconcile Statement Date',
+                    'fieldType'                             : 'flatpickr',
+                    'fieldHelp'                             : false,
+                    'fieldHelpTooltipContent'               : 'Reconcile Statement Date',
+                    'fieldRequired'                         : true,
+                    'fieldBazScan'                          : true,
+                    'fieldBazPostOnCreate'                  : false,
+                    'fieldBazPostOnUpdate'                  : false,
+                    'fieldValue'                            : '',
+                    'fieldFlatpickrPreAddonButtonId'        : 'today',
+                    'fieldFlatpickrPreAddonButtonClass'     : 'secondary',
+                    'fieldFlatpickrPreAddonButtonValue'     : '<i class="fas fa-fw fa-calendar"></i>',
+                    'fieldFlatpickrPreAddonButtonTooltipTitle' : 'Today'
+                ]
+            )}}
+        </div>
+        <div class="col pl-0 pr-1" style="max-width: 50%;">
+            {{adminltetags.useTag('fields',
+                [
+                    'component'                             : component,
+                    'componentName'                         : componentName,
+                    'componentId'                           : componentId,
+                    'sectionId'                             : sectionId,
+                    'fieldId'                               : 'reconcile_ending_balance',
+                    'fieldLabel'                            : 'Reconcile Ending Balance',
+                    'fieldType'                             : 'input',
+                    'fieldInputTypeTextFilter'              : 'positiveCurrency',
+                    'fieldHelp'                             : false,
+                    'fieldHelpTooltipContent'               : 'Balance to achieve after reconcile',
+                    'fieldGroupPreAddonText'                : currencySymbol,
+                    'fieldGroupPostAddonButtons'            :
+                        [
+                            'reconcile-account'   : [
+                                'title'                   : 'Reconcile',
+                                'buttonAdditionalClass'   : 'rounded-0',
+                                'tooltipTitle'            : 'Reconcile Account'
+                            ]
+                        ],
+                    'fieldRequired'                         : true,
+                    'fieldBazScan'                          : true,
+                    'fieldBazPostOnCreate'                  : false,
+                    'fieldBazPostOnUpdate'                  : false,
+                    'fieldBazJstreeSearch'                  : true,
+                    'fieldDataInputMinNumber'               : 1,
+                    'fieldValue'                            : ''
+                ]
+            )}}
+        </div>
+    </div>
+</div>
+<div>
+    {{adminltetags.useTag('modal',
+        [
+            'component'                 : component,
+            'componentName'             : componentName,
+            'componentId'               : componentId,
+            'sectionId'                 : sectionId,
+            'modalId'                   : 'reconcile-modal',
+            'modalBodyInclude'          : 'books/reconcile',
+            'modalSize'                 : 'xl',
+            'modalType'                 : 'primary',
+            'modalHeader'               : true,
+            'modalFooter'               : true,
+            'modalHeaderCloseButton'    : true,
+            'modalEscClose'             : true,
+            'modalTitle'                : 'Reconcile',
+            'modalFooterButtons'        :
+                [
+                'component'                     : component,
+                'componentName'                 : componentName,
+                'componentId'                   : componentId,
+                'parentComponentId'             : parent,
+                'sectionId'                     : sectionId,
+                'buttonType'                    : 'button',
+                'buttons'                       :
+                        [
+                            'modal-reconcile-account' : [
+                                'title'                   : 'reconcile',
+                                'type'                    : 'success',
+                                'disabled'                : true,
+                                'position'                : 'right',
+                                'icon'                    : 'cog fa-spin',
+                                'iconHidden'              : true
+                            ]
+                        ]
+                ]
+        ]
+    )}}
+</div>

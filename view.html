@@ -1,0 +1,58 @@
+{% if book['id'] is defined %}
+    {% set bookId = book['id'] %}
+    {% set title = 'Book (' ~ book['name'] ~ ')' %}
+{% else %}
+    {% set bookId = '' %}
+    {% set title = 'New Book' %}
+{% endif %}
+{% if mode == 'open' %}
+    {{adminltetags.useTag('content',
+        [
+            'component'                     : component,
+            'componentName'                 : componentName,
+            'componentId'                   : componentId,
+            'parentComponentId'             : parent,
+            'sectionId'                     : 'main',
+            'contentType'                   : 'sectionWithForm',
+            'cardHeader'                    : true,
+            'cardFooter'                    : true,
+            'cardType'                      : 'info',
+            'cardIcon'                      : 'book-open',
+            'cardTitle'                     : title,
+            'cardAdditionalClass'           : 'rounded-0',
+            'cardBodyInclude'               : 'books/open',
+            'formButtons'                   :
+            [
+                'closeActionUrl'                : 'accounting/books'
+            ]
+        ]
+    )}}
+{% elseif mode == 'edit' %}
+    {{adminltetags.useTag('content',
+        [
+            'component'                     : component,
+            'componentName'                 : componentName,
+            'componentId'                   : componentId,
+            'parentComponentId'             : parent,
+            'sectionId'                     : 'main',
+            'contentType'                   : 'sectionWithForm',
+            'cardHeader'                    : true,
+            'cardFooter'                    : true,
+            'cardType'                      : 'primary',
+            'cardIcon'                      : 'book',
+            'cardTitle'                     : title,
+            'cardAdditionalClass'           : 'rounded-0',
+            'cardBodyInclude'               : 'books/form',
+            'formButtons'                   :
+            [
+                'updateButtonId'                : bookId,
+                'addActionUrl'                  : 'accounting/books/add',
+                'addSuccessRedirectUrl'         : 'accounting/books',
+                'updateActionUrl'               : 'accounting/books/update',
+                'updateSuccessRedirectUrl'      : 'accounting/books',
+                'cancelActionUrl'               : 'accounting/books',
+                'closeActionUrl'                : 'accounting/books'
+            ]
+        ]
+    )}}
+{% endif %}

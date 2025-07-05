@@ -1,0 +1,40 @@
+<div class="row">
+    <div class="col">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                      : component,
+                'componentName'                  : componentName,
+                'componentId'                    : componentId,
+                'sectionId'                      : sectionId,
+                'fieldId'                        : 'split_transactions',
+                'fieldLabel'                     : 'Split Transactions',
+                'fieldType'                      : 'html',
+                'fieldAdditionalClass'           : 'mb-0',
+                'fieldHelp'                      : true,
+                'fieldHelpTooltipContent'        : 'Transactions for transaction',
+                'fieldRequired'                  : false,
+                'fieldBazScan'                   : true,
+                'fieldBazPostOnUpdate'           : true,
+                'fieldHtmlContent'               :
+                    '<div class="row">' ~
+                    '    <div class="col">' ~
+                    '        <table id="' ~ componentId ~ '-' ~ sectionId ~ '-split-transactions-table" class="table table-sm table-hover responsive nowrap mb-0" width="100%" cellspacing="0">' ~
+                    '            <thead>' ~
+                    '                <tr>' ~
+                    '                    <th class="text-uppercase">ID</th>' ~
+                    '                    <th class="text-uppercase">Seq</th>' ~
+                    '                    <th class="text-uppercase">Description</th>' ~
+                    '                    <th class="text-uppercase">Account</th>' ~
+                    '                    <th class="text-uppercase">Amount</th>' ~
+                    '                </tr>' ~
+                    '            </thead>' ~
+                    '            <tbody>' ~
+                    '            </tbody>' ~
+                    '        </table>' ~
+                    '    </div>' ~
+                    '</div>'
+            ]
+        )}}
+    </div>
+</div>
+<hr>

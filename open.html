@@ -1,0 +1,1664 @@
+<div class="row vdivide">
+    <div class="col-md-3 vdivide-resizable">
+        {{adminltetags.useTag('fields',
+            [
+                'component'                                 : component,
+                'componentName'                             : componentName,
+                'componentId'                               : componentId,
+                'sectionId'                                 : sectionId,
+                'fieldId'                                   : 'accounts_structure',
+                'fieldLabel'                                : 'Accounts',
+                'fieldType'                                 : 'jstree',
+                'fieldHelp'                                 : true,
+                'fieldHelpTooltipContent'                   : 'Select account to add transactions.',
+                'fieldRequired'                             : false,
+                'fieldBazScan'                              : true,
+                'fieldJstreeSearch'                         : true,
+                'fieldBazPostOnCreate'                      : false,
+                'fieldBazPostOnUpdate'                      : false,
+                'fieldJstreeDataSrcArr'                     : ["accounts":["srcArr" : book['accounts_hierarchy']]],
+                'fieldJstreeAdd'                            : false,
+                'fieldJstreeEdit'                           : false,
+                'fieldJstreeExpand'                         : true,
+                'fieldJstreeCollapse'                       : true,
+                'fieldJstreeFirstOpen'                      : false,
+                'fieldJstreeAllOpen'                        : true,
+                'fieldJstreeAllChecked'                     : false,
+                'fieldJstreeRootIcon'                       : 'th',
+                'fieldJstreeToggleAllChildren'              : true,
+                'fieldJstreeIncludeRootInPath'              : false,
+                'fieldJstreeSelectEndNodeOnly'              : false,
+                'fieldJstreeShowDots'                       : true,
+                'fieldJstreeDoubleClickToggle'              : true,
+                'fieldJstreeMultiple'                       : false,
+                'fieldJstreeSearchCaseSensitive'            : false,
+                'fieldJstreeSearchShowOnlyMatches'          : true,
+                'fieldJstreeSearchShowOnlyMatchesChildren'  : true,
+                'fieldJstreeEmptyText'                      : false,
+                'fieldJstreeHideJstreeIcons'                : false,
+                'fieldJstreeAdditionalTools'                : false,
+                'fieldJstreeReplaceIdWithDataField'         : 'id',
+                'fieldJstreePlugins'                        : ["search", "types"],
+                'fieldJstreeAdditionalClass'                : 'text-uppercase',
+                'fieldJstreeHeight'                         : '600'
+            ]
+        )}}
+    </div>
+    <div class="col">
+        <div class="row accountDivs text-center m-2" id="{{componentId}}-{{sectionId}}-account-error" hidden>
+            <div class="col">
+                <h6><i class="fa fa-fw fa-info-circle text-danger"></i> Error loading account transactions. Please contact developer.</h6>
+            </div>
+        </div>
+        <div class="accountDivs text-center m-2" id="{{componentId}}-{{sectionId}}-account-warnings" hidden></div>
+        <div class="row accountDivs text-center m-2" id="{{componentId}}-{{sectionId}}-account-noinfo" hidden>
+            <div class="col">
+                <h6><i class="fa fa-fw fa-info-circle text-info"></i> Select account from the tree for transactions.</h6>
+            </div>
+        </div>
+        <div class="accountDivs" id="{{componentId}}-{{sectionId}}-account-div" hidden>
+            <div class="row accountDivs text-center" id="{{componentId}}-{{sectionId}}-account-loader" hidden>
+                <div class="col">
+                    <i class="fa fa-cog fa-spin"></i> Loading account...
+                </div>
+            </div>
+            <div class="accountDivs m-2" id="{{componentId}}-{{sectionId}}-account-info" hidden>
+                {% include 'books/accountsettings.html' %}
+            </div>
+            <hr>
+            <div class="accountDivs" id="{{componentId}}-{{sectionId}}-account-transactions" hidden>
+                {% include 'books/transactiontable.html' %}
+            </div>
+            <div class="accountDivs" id="{{componentId}}-{{sectionId}}-account-transactions-form" hidden>
+                {% include 'books/transactionform.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% set accountsStructure = json_encode(book['accounts_hierarchy'], 16) %}
+{% set warnings = json_encode(warnings, 16) %}
+{% set book = json_encode(book, 16) %}
+<script>
+/* globals Sortable BazHelpers BazContentFields paginatedPNotify Swal autoComplete */
+var dataCollectionComponent, dataCollectionSection, dataCollectionSectionForm;
+
+if (!window['dataCollection']['{{componentId}}']) {
+    dataCollectionComponent =
+        window['dataCollection']['{{componentId}}'] = { };
+} else {
+    dataCollectionComponent =
+        window['dataCollection']['{{componentId}}'];
+}
+if (!dataCollectionComponent['{{componentId}}-{{sectionId}}']) {
+    dataCollectionSection =
+        dataCollectionComponent['{{componentId}}-{{sectionId}}'] = { };
+} else {
+    dataCollectionSection =
+        dataCollectionComponent['{{componentId}}-{{sectionId}}'];
+}
+if (!dataCollectionSection['{{componentId}}-{{sectionId}}-form']) {
+    dataCollectionSectionForm =
+        dataCollectionSection['{{componentId}}-{{sectionId}}-form'] = { };
+} else {
+    dataCollectionSectionForm =
+        dataCollectionSection['{{componentId}}-{{sectionId}}-form'];
+}
+
+if (!dataCollectionSectionForm['vars']) {
+    dataCollectionSectionForm['vars'] = { };
+}
+if (!dataCollectionSectionForm['funcs']) {
+    dataCollectionSectionForm['funcs'] = { };
+}
+
+dataCollectionSectionForm['vars']['book'] = JSON.parse('{{book}}');
+dataCollectionSectionForm['vars']['accountsStructure'] = JSON.parse('{{accountsStructure}}');
+dataCollectionSectionForm['vars']['accountsList'] = JSON.parse('{{accountsList}}');
+dataCollectionSectionForm['vars']['warnings'] = JSON.parse('{{warnings}}');
+dataCollectionSectionForm['vars']['activeAccount'] = null;
+dataCollectionSectionForm['vars']['activeAccountBalances'] = [];
+dataCollectionSectionForm['vars']['activeTransactions'] = { };
+dataCollectionSectionForm['vars']['activeTransaction'] = [];
+dataCollectionSectionForm['vars']['activeTransactionUUID'] = null;
+dataCollectionSectionForm['vars']['activeSplitTransaction'] = [];
+dataCollectionSectionForm['vars']['unreconcileBalance'] = 0;
+dataCollectionSectionForm['vars']['currencySymbol'] = '{{currencySymbol}}';
+dataCollectionSectionForm['vars']['descriptions'] = { };
+
+dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = null, status = null, remove = false, clone = false, splitTransaction = false, attachment = null, removeAttachment = false) {
+    var postData = { };
+    var url;
+    postData[$('#security-token').attr('name')] = $('#security-token').val();
+    postData['book_id'] = dataCollectionSectionForm['vars']['book']['id'];
+
+    if (remove) {
+        url = '{{links.url("accounting/books/removeAccountingTransaction")}}';
+
+        if (splitTransaction) {
+            postData['id'] = $('#{{componentId}}-{{sectionId}}-split_transaction_id').val();
+            postData['is_split'] = true;
+        } else {
+            postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
+            postData['is_split'] = false;
+        }
+
+        postData['accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
+    } else if (status) {
+        url = '{{links.url("accounting/books/updateAccountingTransaction")}}';
+
+        postData['id'] = $($($(row).children('td')[4]).children('span')[0]).data('id');
+        postData['uuid'] = $($($(row).children('td')[4]).children('span')[0]).data('uuid');
+        postData['status'] = status;
+    } else {
+        postData['accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
+
+        if (splitTransaction) {
+            if ($('#{{componentId}}-{{sectionId}}-split_transaction_id').val() !== '' && !clone) {
+                url = '{{links.url("accounting/books/updateAccountingTransaction")}}';
+                postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
+                postData['split_id'] = $('#{{componentId}}-{{sectionId}}-split_transaction_id').val();
+            } else {
+                if (clone) {
+                    postData['clone'] = true;
+                }
+                url = '{{links.url("accounting/books/addAccountingTransaction")}}';
+                postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
+            }
+        } else {
+            if ($('#{{componentId}}-{{sectionId}}-transaction_id').val() !== '' && !clone) {
+                url = '{{links.url("accounting/books/updateAccountingTransaction")}}';
+                postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
+
+                if (attachment && attachment.uuid) {
+                    var transactionAttachments = dataCollectionSectionForm['vars']['activeTransactions'][postData['id']]['attachments'];
+                    postData['attachments'] = [];
+
+                    if (Object.keys(transactionAttachments).length > 0) {
+                        if (removeAttachment) {
+                            postData['removeAttachment'] = true;
+                            postData['attachmentUUID'] = attachment.uuid;
+                        } else {
+                            for (var transactionAttachment in transactionAttachments) {
+                                postData['attachments'].push(transactionAttachments[transactionAttachment]['uuid']);
+                            }
+                            postData['attachments'].push(attachment.uuid);
+                        }
+                    } else {
+                        postData['attachments'] = [attachment.uuid];
+                    }
+                }
+            } else {
+                if (clone) {
+                    postData['clone'] = true;
+                }
+                url = '{{links.url("accounting/books/addAccountingTransaction")}}';
+                postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
+            }
+
+            postData['date'] = $('#{{componentId}}-{{sectionId}}-transaction_date').val();
+        }
+
+        postData['type'] = $('#{{componentId}}-{{sectionId}}-transaction_type').val();
+
+        if (postData['type'] === 'cr') {
+            postData['cr_accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
+
+            if (splitTransaction) {
+                postData['dr_accounts_uuid'] = $('#{{componentId}}-{{sectionId}}-split_accounts_list').val();
+            } else {
+                postData['dr_accounts_uuid'] = $('#{{componentId}}-{{sectionId}}-accounts_list').val();
+            }
+        } else if (postData['type'] === 'dr') {
+            postData['dr_accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
+
+            if (splitTransaction) {
+                postData['cr_accounts_uuid'] = $('#{{componentId}}-{{sectionId}}-split_accounts_list').val();
+            } else {
+                postData['cr_accounts_uuid'] = $('#{{componentId}}-{{sectionId}}-accounts_list').val();
+            }
+        }
+
+        if (splitTransaction) {
+            postData['sequence'] = $('#{{componentId}}-{{sectionId}}-split_transaction_seq').val();
+
+            if ($('#{{componentId}}-{{sectionId}}-split_transaction_description').select2('data')[0]) {
+                postData['description'] = $('#{{componentId}}-{{sectionId}}-split_transaction_description').select2('data')[0].text;
+            } else {
+                postData['description'] = '';
+            }
+
+            postData['amount'] = $('#{{componentId}}-{{sectionId}}-split_transaction_amount').val();
+
+            postData['is_split'] = true;
+        } else {
+            postData['sequence'] = $('#{{componentId}}-{{sectionId}}-transaction_seq').val();
+
+            if ($('#{{componentId}}-{{sectionId}}-transaction_description').select2('data')[0]) {
+                postData['description'] = $('#{{componentId}}-{{sectionId}}-transaction_description').select2('data')[0].text;
+            } else {
+                postData['description'] = '';
+            }
+
+            postData['amount'] = $('#{{componentId}}-{{sectionId}}-transaction_amount').val();
+
+            postData['is_split'] = false;
+        }
+    }
+
+    $.post(url, postData, function(response) {
+        if (response.tokenKey && response.token) {
+            $("#security-token").attr("name", response.tokenKey);
+            $("#security-token").val(response.token);
+        }
+
+        if (response.responseCode === 0) {
+            if (response.responseData.transactions) {
+                if (splitTransaction) {
+                    dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['splits'] = response.responseData;
+                } else {
+                    dataCollectionSectionForm['vars']['activeTransactions'] = response.responseData.transactions;
+                }
+            }
+
+            if (remove) {
+                paginatedPNotify('success', {text : 'Transaction removed successfully.'});
+
+                dataCollectionSectionForm['funcs']['processAccountTransactions'](response.responseData, splitTransaction);
+            } else if (row && status) {
+                $($(row).children('td')[4]).html(
+                    '<span class="text-uppercase changeStatus" data-id="' + postData['id'] + '" data-uuid="' + postData['uuid'] + '" style="cursor: pointer;">' + status + '</span>'
+                );
+
+                var creditFind = $('#{{componentId}}-{{sectionId}}-reconcile-credit-transactions-table').find('[data-uuid="' + postData['uuid'] + '"]');
+                var debitFind = $('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table').find('[data-uuid="' + postData['uuid'] + '"]');
+
+                if (creditFind.length === 1) {
+                    $(creditFind[0]).html(status);
+                } else if (debitFind.length === 1) {
+                    $(debitFind[0]).html(status);
+                }
+
+                dataCollectionSectionForm['funcs']['changeStatus']();
+            } else {
+                if (removeAttachment) {
+                    dataCollectionSectionForm['funcs']['buildAttachmentsSelect']();
+
+                    return;
+                }
+                if (attachment) {
+                    if (attachment.org_file_name) {
+                        paginatedPNotify('success', {text: 'File ' + attachment.org_file_name + ' uploaded.'});
+                    }
+
+                    dataCollectionSectionForm['funcs']['buildAttachmentsSelect']();
+
+                    return;
+                }
+
+                dataCollectionSectionForm['funcs']['processAccountTransactions'](response.responseData, splitTransaction);
+            }
+        } else if (response.responseCode === 1) {
+            paginatedPNotify('error', {text : response.responseMessage});
+        }
+    }, 'json');
+}
+
+dataCollectionSectionForm['funcs']['getAccountTransactions'] = function(isSplit = false) {
+    var postData = { };
+    postData[$('#security-token').attr('name')] = $('#security-token').val();
+    postData['book_id'] = dataCollectionSectionForm['vars']['book']['id'];
+    postData['accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
+    postData['is_split'] = isSplit;
+
+    if (isSplit) {
+        postData['transaction_uuid'] = dataCollectionSectionForm['vars']['activeTransactionUUID'];
+    }
+
+    $.post('{{links.url("accounting/books/getAccountTransactions")}}', postData, function(response) {
+        if (response.tokenKey && response.token) {
+            $("#security-token").attr("name", response.tokenKey);
+            $("#security-token").val(response.token);
+        }
+
+        if (response.responseCode === 0) {
+            if (response.responseData.transactions) {
+                if (!isSplit) {
+                    dataCollectionSectionForm['vars']['activeTransactions'] = response.responseData.transactions;
+
+                    dataCollectionSectionForm['funcs']['processUnreconciledTransactions'](response.responseData);
+                }
+
+                dataCollectionSectionForm['funcs']['processAccountTransactions'](response.responseData, isSplit);
+            }
+        } else if (response.responseCode === 1) {
+            $('.accountDivs').attr('hidden', true);
+            $('#{{componentId}}-{{sectionId}}-account-error').attr('hidden', false);
+        }
+    }, 'json');
+}
+
+dataCollectionSectionForm['funcs']['processUnreconciledTransactions'] = function(responseData) {
+    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table')) {
+        dataCollectionSectionForm['vars']['reconcileDebitTransactionsTable'] = $('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table').DataTable({
+            columns: [
+                {orderable: false, visible: false},
+                {orderable: false},
+                {orderable: false},
+                {orderable: false},
+                {orderable: false},
+                {orderable: false}
+            ],
+            order: false,
+            lengthMenu: [
+                [20, 50, 100, -1],
+                [20, 50, 100, 'All']
+            ]
+        });
+
+        // dataCollectionSectionForm['vars']['accountTransactionsTable'].on('select', function(e, dt, type, ix) {
+        //     var transactions = dt.rows({selected: true}).data();
+
+        //     $('#{{componentId}}-{{sectionId}}-transaction_id').val(transaction[0]);
+        //     dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate(transaction[1]);
+        //     $('#{{componentId}}-{{sectionId}}-transaction_seq').val(transaction[2]);
+        //     $('#{{componentId}}-{{sectionId}}-transaction_description').val($('option:contains(' + transaction[3] + ')').val()).trigger('change');
+        //     $('#{{componentId}}-{{sectionId}}-accounts_list').val($('option:contains(' + transaction[4] + ')').val()).trigger('change');
+        //     if (transaction[6] !== '') {
+        //         $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('FROM ACCOUNT');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_type').val('dr').trigger('change');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_amount').val(transaction[6]);
+        //     } else if (transaction[7] !== '') {
+        //         $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('TO ACCOUNT');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_type').val('cr').trigger('change');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_amount').val(transaction[7]);
+        //     }
+        //     $('#{{componentId}}-{{sectionId}}-add-transaction').children('i').removeClass('fa-plus').addClass('fa-edit');
+        //     $('#{{componentId}}-{{sectionId}}-clone-transaction').attr('disabled', false);
+        //     $('#{{componentId}}-{{sectionId}}-delete-transaction').attr('disabled', false);
+        // });
+
+        // dataCollectionSectionForm['vars']['accountTransactionsTable'].on('deselect', function(e, dt, type, ix) {
+        //     dataCollectionSectionForm['funcs']['clearTransactionForm']();
+        //     dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate('today');
+        // });
+    }
+
+    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#{{componentId}}-{{sectionId}}-reconcile-credit-transactions-table')) {
+        dataCollectionSectionForm['vars']['reconcileCreditTransactionsTable'] = $('#{{componentId}}-{{sectionId}}-reconcile-credit-transactions-table').DataTable({
+            columns: [
+                {orderable: false, visible: false},
+                {orderable: false},
+                {orderable: false},
+                {orderable: false},
+                {orderable: false},
+                {orderable: false}
+            ],
+            order: false,
+            lengthMenu: [
+                [20, 50, 100, -1],
+                [20, 50, 100, 'All']
+            ]
+        });
+
+        // dataCollectionSectionForm['vars']['accountTransactionsTable'].on('select', function(e, dt, type, ix) {
+        //     var transactions = dt.rows({selected: true}).data();
+
+        //     $('#{{componentId}}-{{sectionId}}-transaction_id').val(transaction[0]);
+        //     dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate(transaction[1]);
+        //     $('#{{componentId}}-{{sectionId}}-transaction_seq').val(transaction[2]);
+        //     $('#{{componentId}}-{{sectionId}}-transaction_description').val($('option:contains(' + transaction[3] + ')').val()).trigger('change');
+        //     $('#{{componentId}}-{{sectionId}}-accounts_list').val($('option:contains(' + transaction[4] + ')').val()).trigger('change');
+        //     if (transaction[6] !== '') {
+        //         $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('FROM ACCOUNT');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_type').val('dr').trigger('change');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_amount').val(transaction[6]);
+        //     } else if (transaction[7] !== '') {
+        //         $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('TO ACCOUNT');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_type').val('cr').trigger('change');
+        //         $('#{{componentId}}-{{sectionId}}-transaction_amount').val(transaction[7]);
+        //     }
+        //     $('#{{componentId}}-{{sectionId}}-add-transaction').children('i').removeClass('fa-plus').addClass('fa-edit');
+        //     $('#{{componentId}}-{{sectionId}}-clone-transaction').attr('disabled', false);
+        //     $('#{{componentId}}-{{sectionId}}-delete-transaction').attr('disabled', false);
+        // });
+
+        // dataCollectionSectionForm['vars']['accountTransactionsTable'].on('deselect', function(e, dt, type, ix) {
+        //     dataCollectionSectionForm['funcs']['clearTransactionForm']();
+        //     dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate('today');
+        // });
+    }
+    var debitTransactions = [];
+    var creditTransactions = [];
+
+    if (Object.keys(responseData.transactions).length > 0) {
+        dataCollectionSectionForm['vars']['activeAccountBalances'] = responseData['balances'];
+
+        if (dataCollectionSectionForm['vars']['activeAccountBalances'][$('#{{componentId}}-{{sectionId}}-reconcile_date').val()]) {
+            $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance')
+                .val(dataCollectionSectionForm['vars']['activeAccountBalances'][$('#{{componentId}}-{{sectionId}}-reconcile_date').val()]);
+        }
+
+        for (var unreconciledTransactionArr in responseData.transactions) {
+            var unreconciledTransaction = responseData.transactions[unreconciledTransactionArr];
+
+            if (unreconciledTransaction['status'] !== 'r') {
+                var newUnreconciledTransaction = [];
+
+                var transactionType = '';
+                var changeReconcileStatus;
+
+                newUnreconciledTransaction.push(unreconciledTransaction['id']);
+
+                newUnreconciledTransaction.push(unreconciledTransaction['date']);
+
+                if (unreconciledTransaction['sequence'] == '0') {
+                    newUnreconciledTransaction.push('');
+                } else {
+                    newUnreconciledTransaction.push(unreconciledTransaction['sequence']);
+                }
+
+                newUnreconciledTransaction.push(unreconciledTransaction['description']);
+
+                if (unreconciledTransaction['cr_accounts_uuid'] === dataCollectionSectionForm['vars']['activeAccount']) {
+                    transactionType = 'credit';
+                } else {
+                    transactionType = 'debit';
+                }
+
+                if (transactionType === 'credit') {
+                    changeReconcileStatus = 'credit';
+                } else {
+                    changeReconcileStatus = 'debit';
+                }
+                newUnreconciledTransaction.push(
+                    '<span class="text-uppercase changeReconcileStatus ' +
+                    changeReconcileStatus +
+                    '" data-id="' + unreconciledTransaction['id'] +
+                    '" data-uuid="' + unreconciledTransaction['uuid'] + '" data-amount="' + unreconciledTransaction['amount'] +
+                    '"style="cursor: pointer;">' + unreconciledTransaction['status'] + '</span>');
+
+                newUnreconciledTransaction.push(unreconciledTransaction['amount']);
+
+                if (transactionType === 'credit') {
+                    creditTransactions.push(newUnreconciledTransaction);
+                } else {
+                    debitTransactions.push(newUnreconciledTransaction);
+                }
+            }
+        }
+    }
+
+    $('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table tbody').empty();
+    dataCollectionSectionForm['vars']['reconcileDebitTransactionsTable'].rows().clear().draw();
+    if (debitTransactions.length > 0) {
+        dataCollectionSectionForm['vars']['reconcileDebitTransactionsTable'].rows.add(debitTransactions).draw();
+    }
+
+    $('#{{componentId}}-{{sectionId}}-reconcile-credit-transactions-table tbody').empty();
+    dataCollectionSectionForm['vars']['reconcileCreditTransactionsTable'].rows().clear().draw();
+    if (creditTransactions.length > 0) {
+        dataCollectionSectionForm['vars']['reconcileCreditTransactionsTable'].rows.add(creditTransactions).draw();
+    }
+
+    dataCollectionSectionForm['funcs']['changeReconcileStatus']();
+}
+
+dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(responseData, splitTransactions = false) {
+    if (splitTransactions) {
+        var transactions = [];
+
+        if (responseData.balance != 'null') {
+            var amountText = 'primary';
+            var mainTransactionAmount = $('#{{componentId}}-{{sectionId}}-account-transactions-table').find('tr.selected').find('td span.transactionAmount');
+
+            if (responseData.balance > parseFloat($('#{{componentId}}-{{sectionId}}-transaction_amount').val())) {
+                amountText = 'danger';
+                $(mainTransactionAmount).removeClass('text-primary').addClass('text-danger');
+                // $(mainTransactionAmount).attr('data-error', 'Split transactions total does not match transaction total.');
+                // $(mainTransactionAmount).data('error', 'Split transactions total does not match transaction total.');
+                // $('#transaction-errors-text').html('Split transactions total does not match transaction total.');
+                $('#transaction-errors-div').attr('hidden', false);
+                dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['error'] =
+                    'Split transactions total does not match transaction total.';
+                    // dataCollectionSectionForm['vars']['splitTransactionsTable'].draw();
+            } else if (responseData.balance < parseFloat($('#{{componentId}}-{{sectionId}}-transaction_amount').val())) {
+                amountText = 'warning';
+                $(mainTransactionAmount).removeClass('text-primary').addClass('text-danger');
+                // $(mainTransactionAmount).attr('data-error', 'Split transactions total does not match transaction total.');
+                // $(mainTransactionAmount).data('error', 'Split transactions total does not match transaction total.');
+                // $('#transaction-errors-text').html('Split transactions total does not match transaction total.');
+                $('#transaction-errors-div').attr('hidden', false);
+                dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['error'] =
+                    'Split transactions total does not match transaction total.';
+                    // dataCollectionSectionForm['vars']['splitTransactionsTable'].draw();
+            } else {
+                $(mainTransactionAmount).removeClass('text-danger').addClass('text-primary');
+                // $(mainTransactionAmount).removeAttr('data-error');
+                // $(mainTransactionAmount).removeData('error');
+                // $('#transaction-errors-text').html('');
+                $('#transaction-errors-div').attr('hidden', true);
+                dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['error'] = false;
+                // dataCollectionSectionForm['vars']['splitTransactionsTable'].draw();
+            }
+
+            $('#{{componentId}}-{{sectionId}}-split_total')
+                .html(
+                    dataCollectionSectionForm['vars']['currencySymbol'] +
+                    '<span class="text-' + amountText + '">' +
+                    $('#{{componentId}}-{{sectionId}}-transaction_amount').val() +
+                    '</span>'
+                );
+
+            $('#{{componentId}}-{{sectionId}}-split_transactions_total')
+                .html(
+                    dataCollectionSectionForm['vars']['currencySymbol'] +
+                    '<span class="text-' + amountText + '">' +
+                    responseData.balance +
+                    '</span>'
+                );
+
+            dataCollectionSectionForm['funcs']['buildAccountsTable']();
+        }
+
+        if (Object.keys(dataCollectionSectionForm['vars']['descriptions']).length === 0) {
+            dataCollectionSectionForm['vars']['descriptions'] = { };
+        }
+
+        $('#{{componentId}}-{{sectionId}}-split-transactions-table tbody').empty();
+        dataCollectionSectionForm['vars']['splitTransactionsTable'].rows().clear().draw();
+
+        if (Object.keys(responseData.transactions).length > 0) {
+            dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['splits'] = responseData;
+
+            for (var splitTransactionArr in responseData.transactions) {
+                var splitTransaction = responseData.transactions[splitTransactionArr];
+                var newSplitTransaction = [];
+
+                newSplitTransaction.push(splitTransaction['id']);
+
+                if (splitTransaction['sequence'] == '0') {
+                    newSplitTransaction.push('');
+                } else {
+                    newSplitTransaction.push(splitTransaction['sequence']);
+                }
+
+                newSplitTransaction.push(splitTransaction['description']);
+                if (!dataCollectionSectionForm['vars']['descriptions'][splitTransaction['description']]) {
+                    dataCollectionSectionForm['vars']['descriptions'][splitTransaction['description']] = {'id':splitTransaction['id'], 'description' : splitTransaction['description']};
+                }
+
+                newSplitTransaction.push('<span data-uuid="' + splitTransaction['dr_accounts_uuid'] + '">' + dataCollectionSectionForm['vars']['accountsList'][splitTransaction['dr_accounts_uuid']]['path'] + '</span>');
+
+                newSplitTransaction.push('<span class="text-primary splitTransactionAmount">' + splitTransaction['amount'] + '</span>');
+
+                transactions.push(newSplitTransaction);
+            }
+
+            dataCollectionSectionForm['vars']['splitTransactionsTable'].rows.add(transactions).draw();
+
+            $('#{{componentId}}-{{sectionId}}-split-transaction').html(
+                '<i class="fas fa-fw fa-list-ol"></i> SPLIT TRANSACTION (' +
+                Object.keys(responseData.transactions).length +
+                ')'
+            );
+        } else {
+            $('#{{componentId}}-{{sectionId}}-split-transaction').html('<i class="fas fa-fw fa-list-ol"></i> SPLIT TRANSACTION (0)');
+        }
+
+        dataCollectionSectionForm['funcs']['clearSplitTransactionForm']();
+
+        $('#{{componentId}}-{{sectionId}}-splits-modal').modal('show');
+    } else {
+        if (responseData.balance != 'null') {
+            if (responseData.balance < 0) {
+                $('#{{componentId}}-{{sectionId}}-account_balance')
+                    .html(
+                        dataCollectionSectionForm['vars']['currencySymbol'] +
+                        '<span class="text-danger">' +
+                        responseData.balance +
+                        '</span>'
+                    );
+            } else {
+                $('#{{componentId}}-{{sectionId}}-account_balance').html(dataCollectionSectionForm['vars']['currencySymbol'] + responseData.balance);
+            }
+        }
+        $('.accountDivs').attr('hidden', true);
+        $('#{{componentId}}-{{sectionId}}-account_name').html(dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['name']);
+        $('#{{componentId}}-{{sectionId}}-account_path').html(dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['path']);
+
+        dataCollectionSectionForm['vars']['descriptions'] = { };
+
+        dataCollectionSectionForm['funcs']['buildAccountsTable']();
+
+        $('#{{componentId}}-{{sectionId}}-account-info').attr('hidden', false);
+        if (dataCollectionSectionForm['vars']['unreconcileBalance'] > 0) {
+            $('#{{componentId}}-{{sectionId}}-balance_to_reconcile')
+                .html(
+                    dataCollectionSectionForm['vars']['currencySymbol'] +
+                    '<span class="text-danger">' +
+                    dataCollectionSectionForm['vars']['unreconcileBalance'] +
+                    '</span>'
+                );
+
+            $('#reconcile-div').attr('hidden', false);
+        } else {
+            $('#{{componentId}}-{{sectionId}}-balance_to_reconcile').html(dataCollectionSectionForm['vars']['currencySymbol'] + dataCollectionSectionForm['vars']['unreconcileBalance']);
+            $('#reconcile-div').attr('hidden', true);
+        }
+        $('#{{componentId}}-{{sectionId}}-account-div').attr('hidden', false);
+        $('#{{componentId}}-{{sectionId}}-account-info').attr('hidden', false);
+        $('#{{componentId}}-{{sectionId}}-account-transactions').attr('hidden', false);
+        $('#{{componentId}}-{{sectionId}}-account-transactions-form').attr('hidden', false);
+
+        dataCollectionSectionForm['funcs']['changeStatus']();
+
+        dataCollectionSectionForm['funcs']['clearTransactionForm']();
+    }
+
+    //Set focus on Form description input
+    if (Object.keys(dataCollectionSectionForm['vars']['descriptions']).length > 0) {
+        if (splitTransactions) {
+            $('#{{componentId}}-{{sectionId}}-split_transaction_description').empty().trigger('change');
+        } else {
+            $('#{{componentId}}-{{sectionId}}-transaction_description').empty().trigger('change');
+        }
+        for (var description in dataCollectionSectionForm['vars']['descriptions']) {
+            if (splitTransactions) {
+                var newSplitOption = new Option(
+                    dataCollectionSectionForm['vars']['descriptions'][description]['description'],
+                    dataCollectionSectionForm['vars']['descriptions'][description]['id'],
+                    false,
+                    false
+                );
+                $('#{{componentId}}-{{sectionId}}-split_transaction_description').append(newSplitOption);
+            } else {
+                var newOption = new Option(
+                    dataCollectionSectionForm['vars']['descriptions'][description]['description'],
+                    dataCollectionSectionForm['vars']['descriptions'][description]['id'],
+                    false,
+                    false
+                );
+                $('#{{componentId}}-{{sectionId}}-transaction_description').append(newOption);
+            }
+        }
+        if (splitTransactions) {
+            $('#{{componentId}}-{{sectionId}}-split_transaction_description').val(0).trigger('change');
+        } else {
+            $('#{{componentId}}-{{sectionId}}-transaction_description').val(0).trigger('change');
+        }
+    }
+}
+
+dataCollectionSectionForm['funcs']['buildAccountsTable'] = function() {
+    var transactions = [];
+
+    $('#{{componentId}}-{{sectionId}}-account-transactions-table tbody').empty();
+    dataCollectionSectionForm['vars']['accountTransactionsTable'].rows().clear().draw();
+    //eslint-disable-next-line
+    console.log(dataCollectionSectionForm['vars']['activeTransactions']);
+    if (Object.keys(dataCollectionSectionForm['vars']['activeTransactions']).length > 0) {
+        for (var transactionArr in dataCollectionSectionForm['vars']['activeTransactions']) {
+            var transaction = dataCollectionSectionForm['vars']['activeTransactions'][transactionArr];
+            var newTransaction = [];
+
+            if (transaction['status'] !== 'r') {
+                dataCollectionSectionForm['vars']['unreconcileBalance'] += transaction['amount'];
+            }
+
+            newTransaction.push(transaction['id']);
+
+            newTransaction.push(transaction['date']);
+
+            if (transaction['sequence'] == '0') {
+                newTransaction.push('');
+            } else {
+                newTransaction.push(transaction['sequence']);
+            }
+
+            newTransaction.push(transaction['description']);
+            if (!dataCollectionSectionForm['vars']['descriptions'][transaction['description']]) {
+                dataCollectionSectionForm['vars']['descriptions'][transaction['description']] = {'id':transaction['id'], 'description' : transaction['description']};
+            }
+
+            newTransaction.push('<span data-uuid="' + transaction['dr_accounts_uuid'] + '">' + dataCollectionSectionForm['vars']['accountsList'][transaction['dr_accounts_uuid']]['path'] + '</span>');
+
+            newTransaction.push('<span class="text-uppercase changeStatus" data-id="' + transaction['id'] + '" data-uuid="' + transaction['uuid'] + '" style="cursor: pointer;">' + transaction['status'] + '</span>');
+
+            if (transaction['cr_accounts_uuid'] === dataCollectionSectionForm['vars']['activeAccount']) {
+                newTransaction.push('');
+                if (transaction['error']) {
+                    newTransaction.push('<span class="transactionAmount text-danger" data-error="' + transaction['error'] + '">' + transaction['amount'] + '</span>');
+                } else {
+                    newTransaction.push('<span class="transactionAmount text-primary">' + transaction['amount'] + '</span>');
+                }
+            } else {
+                if (transaction['error']) {
+                    newTransaction.push('<span class="transactionAmount text-danger" data-error="' + transaction['error'] + '">' + transaction['amount'] + '</span>');
+                } else {
+                    newTransaction.push('<span class="transactionAmount text-primary">' + transaction['amount'] + '</span>');
+                }
+                newTransaction.push('');
+                newTransaction[4] = '<span data-uuid="' + transaction['cr_accounts_uuid'] + '">' + dataCollectionSectionForm['vars']['accountsList'][transaction['cr_accounts_uuid']]['path'] + '</span>';
+            }
+
+            if (transaction['balance'] >= 0) {
+                newTransaction.push('<span class="balance text-primary">' + transaction['balance'] + '</span>');
+            } else {
+                newTransaction.push('<span class="balance text-danger">' + transaction['balance'] + '</span>');
+            }
+
+            transactions.push(newTransaction);
+        }
+
+        dataCollectionSectionForm['vars']['accountTransactionsTable'].rows.add(transactions).draw();
+    }
+}
+
+dataCollectionSectionForm['funcs']['buildAttachmentsSelect'] = function() {
+    $('#{{componentId}}-{{sectionId}}-transaction_attachments').empty().trigger('change');
+    $('#{{componentId}}-{{sectionId}}-remove-attachment').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-download-attachment').addClass('disabled');
+    $('#{{componentId}}-{{sectionId}}-download-attachment').attr('href', '#');
+
+    if (dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]) {
+        var transaction = dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()];
+
+        if (transaction['attachments'] && Object.keys(transaction['attachments']).length > 0) {
+            for (var attachment in transaction['attachments']) {
+                var newOption = new Option(transaction['attachments'][attachment]['org_file_name'], transaction['attachments'][attachment]['uuid'], false, false);
+
+                $('#{{componentId}}-{{sectionId}}-transaction_attachments').append(newOption).trigger('change');
+            }
+
+            $('#{{componentId}}-{{sectionId}}-transaction_attachments').val(0).trigger('change');
+        }
+
+        if (dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['attachments']) {
+            $('#{{componentId}}-{{sectionId}}-attachments').html(
+                '<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (' +
+                Object.keys(dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['attachments']).length +
+                ')'
+            )
+        } else {
+            $('#{{componentId}}-{{sectionId}}-attachments').html('<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (0)');
+        }
+    }
+}
+
+dataCollectionSectionForm['funcs']['changeStatus'] = function() {
+    $('.changeStatus').off();
+    $('.changeStatus').click(function(e) {
+        e.preventDefault();
+
+        var status = $(this).html();
+
+        if (status === 'r') {
+            return;
+        } else if (status === 'n') {
+            status = 'c';
+        } else if (status === 'c') {
+            status = 'n'
+        }
+
+        dataCollectionSectionForm['funcs']['crudAccountTransaction']($(this).parents('tr'), status);
+    });
+}
+
+dataCollectionSectionForm['funcs']['changeReconcileStatus'] = function(reset = false) {
+    if (reset) {
+        $('.changeReconcileStatus').each(function(index, status) {
+            var transactionStatus = $('#{{componentId}}-{{sectionId}}-account-transactions-table').find('[data-uuid="' + $(status).data('uuid') + '"]');
+
+            if (transactionStatus.length === 1) {
+                $(this).html($(transactionStatus[0]).html());
+            } else {
+                $(this).html('n');
+            }
+        });
+
+        return;
+    }
+
+    var endingBalance = parseFloat($('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val());
+    var difference = parseFloat($('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val());
+    var reconciledBalance = 0;
+    var reconciledBalanceText, differenceText;
+
+    $('.changeReconcileStatus').off();
+    $('.changeReconcileStatus').click(function(e) {
+        e.preventDefault();
+
+        var status = $(this).html().toLowerCase();
+        var type = 'credit';
+        var amount = 0;
+
+        if ($(this).hasClass('debit')) {
+            type = 'debit';
+        }
+
+        if (status === 'r') {
+            amount = $(this).data('amount');
+
+            if (type === 'debit') {
+                reconciledBalance = Number(Math.round((reconciledBalance - amount) + 'e2') + 'e-2');
+                difference = Number(Math.round((difference + amount) + 'e2') + 'e-2');
+            } else {
+                reconciledBalance = Number(Math.round((reconciledBalance + amount) + 'e2') + 'e-2');
+                difference = Number(Math.round((difference - amount) + 'e2') + 'e-2');
+            }
+
+            $(this).html('N');
+        } else if (status === 'n' || status === 'c') {
+            amount = $(this).data('amount');
+
+            if (type === 'debit') {
+                reconciledBalance = Number(Math.round((reconciledBalance + amount) + 'e2') + 'e-2');
+                difference = Number(Math.round((difference - amount) + 'e2') + 'e-2');
+            } else {
+                reconciledBalance = Number(Math.round((reconciledBalance - amount) + 'e2') + 'e-2');
+                difference = Number(Math.round((difference + amount) + 'e2') + 'e-2');
+            }
+
+            $(this).html('R');
+        }
+
+        if (reconciledBalance < 0) {
+            reconciledBalanceText = 'danger';
+        } else {
+            reconciledBalanceText = 'primary';
+        }
+        if (difference < 0) {
+            differenceText = 'danger';
+        } else {
+            differenceText = 'primary';
+        }
+
+        $('#{{componentId}}-{{sectionId}}-reconciled_balance').html(
+                dataCollectionSectionForm['vars']['currencySymbol'] +
+                '<span class="text-' + reconciledBalanceText + '">' +
+                reconciledBalance +
+                '</span>'
+        );
+        $('#{{componentId}}-{{sectionId}}-reconciled_difference').html(
+                dataCollectionSectionForm['vars']['currencySymbol'] +
+                '<span class="text-' + differenceText + '">' +
+                difference +
+                '</span>'
+        );
+
+        if (difference === 0) {
+            $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').attr('disabled', false);
+        } else {
+            $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').attr('disabled', true);
+        }
+    });
+}
+
+dataCollectionSectionForm['funcs']['clearReconcileModalData'] = function() {
+    dataCollectionSectionForm['funcs']['changeReconcileStatus'](true);
+    $('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table tbody').empty();
+    dataCollectionSectionForm['vars']['reconcileDebitTransactionsTable'].rows().clear().draw();
+    $('#{{componentId}}-{{sectionId}}-reconcile-credit-transactions-table tbody').empty();
+    dataCollectionSectionForm['vars']['reconcileCreditTransactionsTable'].rows().clear().draw();
+    $('#{{componentId}}-{{sectionId}}-reconciled_statement_date').html('');
+    $('#{{componentId}}-{{sectionId}}-reconciled_starting_balance').html('');
+    $('#{{componentId}}-{{sectionId}}-reconciled_ending_balance').html('');
+    $('#{{componentId}}-{{sectionId}}-reconciled_balance').html('');
+    $('#{{componentId}}-{{sectionId}}-reconciled_difference').html('');
+    $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').attr('disabled', true);
+}
+
+dataCollectionSectionForm['funcs']['reconcileTransactions'] = function() {
+    var postData = { };
+    postData[$('#security-token').attr('name')] = $('#security-token').val();
+    postData['book_id'] = dataCollectionSectionForm['vars']['book']['id'];
+    postData['accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
+    postData['reconcile_date'] = $('#{{componentId}}-{{sectionId}}-reconcile_date').val();
+    postData['reconcile_ending_balance'] = $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val();
+    postData['transaction_ids'] = [];
+
+    var creditFind = $('#{{componentId}}-{{sectionId}}-reconcile-credit-transactions-table').find('[data-uuid]');
+    var debitFind = $('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table').find('[data-uuid]');
+
+    if (creditFind.length > 0) {
+        $(creditFind).each(function(index, creditTransaction) {
+            if ($(creditTransaction).html().toLowerCase() === 'r') {
+                postData['transaction_ids'].push($(creditTransaction).data('id'));
+            }
+        });
+    }
+
+    if (debitFind.length > 0) {
+        $(debitFind).each(function(index, debitTransaction) {
+            if ($(debitTransaction).html().toLowerCase() === 'r') {
+                postData['transaction_ids'].push($(debitTransaction).data('id'));
+            }
+        });
+    }
+
+    $.post('{{links.url("accounting/books/reconcileAccountingTransactions")}}', postData, function(response) {
+        if (response.tokenKey && response.token) {
+            $("#security-token").attr("name", response.tokenKey);
+            $("#security-token").val(response.token);
+        }
+
+        if (response.responseCode === 0) {
+            $('#{{componentId}}-{{sectionId}}-reconcile-modal').modal('hide');
+
+            $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').children('i').attr('hidden', true);
+
+            dataCollectionSectionForm['funcs']['processAccountTransactions'](response.responseData);
+        } else if (response.responseCode === 1) {
+            paginatedPNotify('error', {text : response.responseMessage});
+        }
+    }, 'json');
+}
+
+dataCollectionSectionForm['funcs']['clearTransactionForm'] = function(focus = true) {
+    $('#{{componentId}}-{{sectionId}}-transaction_id').val('');
+    $('#{{componentId}}-{{sectionId}}-transaction_seq').val('');
+    $('#{{componentId}}-{{sectionId}}-transaction_description').val(0).trigger('change');
+    $('#{{componentId}}-{{sectionId}}-transaction_type').val('cr').trigger('change');
+    $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('TO ACCOUNT');
+    $('#{{componentId}}-{{sectionId}}-accounts_list').val(0).trigger('change');
+    $('#{{componentId}}-{{sectionId}}-transaction_amount').val('');
+    $('#{{componentId}}-{{sectionId}}-attachments').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-split-transaction').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-clone-transaction').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-delete-transaction').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-add-transaction').children('i').removeClass('fa-edit').addClass('fa-plus');
+    if (focus) {
+        $('#{{componentId}}-{{sectionId}}-transaction_seq').focus();
+    }
+    $('#{{componentId}}-{{sectionId}}-accounts_list').attr('disabled', false);
+    $('#{{componentId}}-{{sectionId}}-attachments').html('<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (0)');
+    $('#{{componentId}}-{{sectionId}}-split-transaction').html('<i class="fas fa-fw fa-list-ol"></i> SPLIT TRANSACTION (0)');
+    $('#transaction-errors-div').attr('hidden', true);
+}
+
+dataCollectionSectionForm['funcs']['clearSplitTransactionForm'] = function(focus = true) {
+    $('#{{componentId}}-{{sectionId}}-split_transaction_id').val('');
+    $('#{{componentId}}-{{sectionId}}-split_transaction_seq').val('');
+    $('#{{componentId}}-{{sectionId}}-split_transaction_description').val(0).trigger('change');
+    $('#{{componentId}}-{{sectionId}}-split_accounts_list').val(0).trigger('change');
+    $('#{{componentId}}-{{sectionId}}-split_transaction_amount').val('');
+    $('#{{componentId}}-{{sectionId}}-clone-split-transaction').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-delete-split-transaction').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-add-split-transaction').children('i').removeClass('fa-edit').addClass('fa-plus');
+    if (focus) {
+        $('#{{componentId}}-{{sectionId}}-split_transaction_seq').focus();
+    }
+}
+
+dataCollectionSection =
+    $.extend(dataCollectionSection, {
+        '{{componentId}}-{{sectionId}}-transactions'                    : {
+            afterInit: function() {
+                if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#{{componentId}}-{{sectionId}}-account-transactions-table')) {
+                    dataCollectionSectionForm['vars']['accountTransactionsTable'] = $('#{{componentId}}-{{sectionId}}-account-transactions-table').DataTable({
+                        columns: [
+                            {orderable: false, visible: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false}
+                        ],
+                        order: false,
+                        lengthMenu: [
+                            [20, 50, 100, -1],
+                            [20, 50, 100, 'All']
+                        ],
+                        select: {
+                            style: 'single'
+                        },
+                        dom: '<"row mb-1"<"col-md-3 col-xs-12"B><"col-md-3 col-xs-12"l><"col-md-3 col-xs-12"f><"col-md-3 col-xs-12"p>>' +
+                             '<"row mb-1"<"col"tr>>' +
+                             '<"row"<"col-md-6 col-xs-12"i><"col-md-6 col-xs-12"p>>',
+                        buttons: [
+                            {
+                                extend          : 'collection',
+                                text            : 'Export',
+                                className       : 'btn-sm btn-info',
+                                buttons         : [{
+                                                    text            : 'Excel',
+                                                    title           : 'Export transactions list',
+                                                    extend          : 'excelHtml5',
+                                                    footer          : false,
+                                                    exportOptions   : {
+                                                                        columns: ':visible'
+                                                                    }
+                                                },
+                                                {
+                                                    text            : 'CSV',
+                                                    extend          : 'csvHtml5',
+                                                    fieldSeparator  : ',',
+                                                    exportOptions   : {
+                                                                        columns: ':visible'
+                                                                    }
+                                                }
+                                                ]
+                            }
+                        ]
+                    });
+
+                    dataCollectionSectionForm['vars']['accountTransactionsTable'].page('last').draw('page');
+
+                    dataCollectionSectionForm['vars']['accountTransactionsTable'].on('select', function(e, dt, type, ix) {
+                        var transaction = dt.rows({selected: true}).data()[0];
+
+                        dataCollectionSectionForm['vars']['activeTransaction'] = transaction;
+
+                        $('#{{componentId}}-{{sectionId}}-transaction_id').val(transaction[0]);
+
+                        dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate(transaction[1]);
+                        $('#{{componentId}}-{{sectionId}}-split_transactions_date').html(transaction[1]);
+
+
+                        $('#{{componentId}}-{{sectionId}}-transaction_seq').val(transaction[2]);
+
+                        $('#{{componentId}}-{{sectionId}}-transaction_description option').each(function(index, option) {
+                            if ($(option).html() === transaction[3]) {
+                                $('#{{componentId}}-{{sectionId}}-transaction_description').val($(option).val()).trigger('change');
+
+                                $('#{{componentId}}-{{sectionId}}-splits-modal-label').html(
+                                    '<span class="text-uppercase">TRANSACTION SPLITS : ' +
+                                    $(option).html() +
+                                    '</span>'
+                                );
+
+                                $('#{{componentId}}-{{sectionId}}-attachments-modal-label').html(
+                                    '<span class="text-uppercase">TRANSACTION ATTACHMENTS : ' +
+                                    $(option).html() +
+                                    '</span>'
+                                );
+
+                                return;
+                            }
+                        });
+
+                        dataCollectionSectionForm['vars']['activeTransactionUUID'] = $($(transaction[5])[0]).data('uuid');
+                        $('#{{componentId}}-{{sectionId}}-accounts_list').val($($(transaction[4])[0]).data('uuid')).trigger('change');
+                        $('#{{componentId}}-{{sectionId}}-accounts_list').attr('disabled', false);
+
+                        if ($($(transaction[4])[0]).data('uuid') === 'split') {
+                            $('#{{componentId}}-{{sectionId}}-accounts_list').attr('disabled', true);
+                        }
+
+                        if (transaction[6] !== '') {//Debit
+                            $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('FROM ACCOUNT');
+                            $('#{{componentId}}-{{sectionId}}-split_accounts_list').siblings('label').html('FROM ACCOUNT');
+                            $('#{{componentId}}-{{sectionId}}-transaction_type').val('dr').trigger('change');
+                            $('#{{componentId}}-{{sectionId}}-transaction_amount').val($(transaction[6]).html());
+                            if ($(transaction[6]).data('error')) {
+                                $('#transaction-errors-text').html($(transaction[6]).data('error'));
+                                $('#transaction-errors-div').attr('hidden', false);
+                            } else {
+                                $('#transaction-errors-text').html('');
+                                $('#transaction-errors-div').attr('hidden', true);
+
+                            }
+                            $('#{{componentId}}-{{sectionId}}-split_from_account').html(
+                                dataCollectionSectionForm['vars']['accountsList'][$($(transaction[4])[0]).data('uuid')]['path']
+                            );
+                            $('#{{componentId}}-{{sectionId}}-split_total').html(dataCollectionSectionForm['vars']['currencySymbol'] + transaction[6]);
+                        } else if (transaction[7] !== '') {//Credit
+                            $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('TO ACCOUNT');
+                            $('#{{componentId}}-{{sectionId}}-split_accounts_list').siblings('label').html('TO ACCOUNT');
+                            $('#{{componentId}}-{{sectionId}}-transaction_type').val('cr').trigger('change');
+                            $('#{{componentId}}-{{sectionId}}-transaction_amount').val($(transaction[7]).html());
+                            if ($(transaction[7]).data('error')) {
+                                $('#transaction-errors-text').html($(transaction[7]).data('error'));
+                                $('#transaction-errors-div').attr('hidden', false);
+                            } else {
+                                $('#transaction-errors-text').html('');
+                                $('#transaction-errors-div').attr('hidden', true);
+
+                            }
+                            $('#{{componentId}}-{{sectionId}}-split_from_account').html(
+                                dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['path']
+                            );
+                            $('#{{componentId}}-{{sectionId}}-split_total').html(dataCollectionSectionForm['vars']['currencySymbol'] + transaction[7]);
+                        }
+
+                        $('#{{componentId}}-{{sectionId}}-add-transaction').children('i').removeClass('fa-plus').addClass('fa-edit');
+                        $('#{{componentId}}-{{sectionId}}-attachments').attr('disabled', false);
+                        $('#{{componentId}}-{{sectionId}}-split-transaction').attr('disabled', false);
+                        $('#{{componentId}}-{{sectionId}}-clone-transaction').attr('disabled', false);
+                        $('#{{componentId}}-{{sectionId}}-delete-transaction').attr('disabled', false);
+
+                        if (dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]) {
+                            if (dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['attachments']) {
+                                $('#{{componentId}}-{{sectionId}}-attachments').html(
+                                    '<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (' +
+                                    Object.keys(dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['attachments']).length +
+                                    ')'
+                                );
+                            } else {
+                                $('#{{componentId}}-{{sectionId}}-attachments').html('<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (0)');
+                            }
+                            //eslint-disable-next-line
+                            console.log(dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]);
+                            if (dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['splits'] &&
+                                dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['splits']['transactions']
+                            ) {
+                                $('#{{componentId}}-{{sectionId}}-split-transaction').html(
+                                    '<i class="fas fa-fw fa-list-ol"></i> SPLIT TRANSACTION (' +
+                                    Object.keys(dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['splits']['transactions']).length +
+                                    ')'
+                                );
+                            } else {
+                                $('#{{componentId}}-{{sectionId}}-split-transaction').html('<i class="fas fa-fw fa-list-ol"></i> SPLIT TRANSACTION (0)');
+                            }
+                        }
+                    });
+
+                    dataCollectionSectionForm['vars']['accountTransactionsTable'].on('deselect', function(e, dt, type, ix) {
+                        dataCollectionSectionForm['vars']['activeTransaction'] = [];
+                        dataCollectionSectionForm['vars']['activeTransactionUUID'] = null;
+                        dataCollectionSectionForm['funcs']['clearTransactionForm'](false);
+                        dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate('today');
+                    });
+                }
+
+                $('#{{componentId}}-{{sectionId}}-add-transaction, #{{componentId}}-{{sectionId}}-clone-transaction').off();
+                $('#{{componentId}}-{{sectionId}}-add-transaction, #{{componentId}}-{{sectionId}}-clone-transaction').click(function(e) {
+                    e.preventDefault();
+
+                    if ($(this)[0].id === '{{componentId}}-{{sectionId}}-clone-transaction') {
+                        dataCollectionSectionForm['funcs']['crudAccountTransaction'](null, null, false, true);
+                    } else {
+                        dataCollectionSectionForm['funcs']['crudAccountTransaction']();
+                    }
+                });
+
+                $('#{{componentId}}-{{sectionId}}-split-transaction').off();
+                $('#{{componentId}}-{{sectionId}}-split-transaction').click(function(e) {
+                    e.preventDefault();
+
+                    //eslint-disable-next-line
+                    console.log($('#{{componentId}}-{{sectionId}}-transaction_id').val(), dataCollectionSectionForm['vars']['activeTransactions']);
+                    if (dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]) {
+                        var transaction = dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()];
+
+                        if (transaction['has_splits']) {
+                            if (transaction['splits'] && transaction['splits']['transactions']) {
+                                dataCollectionSectionForm['funcs']['processAccountTransactions'](transaction['splits'], true);
+
+                                return;
+                            }
+                        }
+
+                        //If transactions not available due to an error or something. we get again.
+                        dataCollectionSectionForm['funcs']['getAccountTransactions'](true);
+                    }
+                });
+
+                $('#{{componentId}}-{{sectionId}}-attachments').off();
+                $('#{{componentId}}-{{sectionId}}-attachments').click(function(e) {
+                    e.preventDefault();
+
+                    dataCollectionSectionForm['funcs']['buildAttachmentsSelect']();
+
+                    $('#{{componentId}}-{{sectionId}}-attachments-modal').modal('show');
+                });
+
+                $('#{{componentId}}-{{sectionId}}-transaction_attachments').on('select2:select', function(e) {
+                    $('#{{componentId}}-{{sectionId}}-remove-attachment').attr('disabled', false);
+
+                    $('#{{componentId}}-{{sectionId}}-download-attachment').removeClass('disabled');
+                    $('#{{componentId}}-{{sectionId}}-download-attachment').attr('href', '{{links.url("system/storages/q/uuid/' + e.params.data.id + '")}}');
+
+                    $('#{{componentId}}-{{sectionId}}-remove-attachment').off();
+                    $('#{{componentId}}-{{sectionId}}-remove-attachment').click(function(buttonE) {
+                        buttonE.preventDefault();
+
+                        Swal.fire({
+                            title                       : '<span class="text-danger"> Remove attachment?</span>',
+                            icon                        : 'question',
+                            background                  : 'rgba(0,0,0,.8)',
+                            backdrop                    : 'rgba(0,0,0,.6)',
+                            buttonsStyling              : false,
+                            confirmButtonText           : 'Remove',
+                            customClass                 : {
+                                'confirmButton'             : 'btn btn-danger text-uppercase',
+                                'cancelButton'              : 'ml-2 btn btn-secondary text-uppercase',
+                            },
+                            showCancelButton            : true,
+                            keydownListenerCapture      : true,
+                            allowOutsideClick           : true,
+                            allowEscapeKey              : true,
+                            didOpen                     : function() {
+                                window['dataCollection'].env.sounds.swalSound.play();
+                            }
+                        }).then((result) => {
+                            if (result.value) {
+                                dataCollectionSectionForm['funcs']['crudAccountTransaction'](null, null, false, false, false, {'uuid' : e.params.data.id}, true);
+                            }
+                        });
+                    });
+                });
+
+                $('#{{componentId}}-{{sectionId}}-splits-modal').on('hide.bs.modal', function (e) {
+                    $('#{{componentId}}-{{sectionId}}-split-transactions-table tbody').empty();
+                    dataCollectionSectionForm['vars']['splitTransactionsTable'].rows().clear().draw();
+                    dataCollectionSectionForm['funcs']['clearTransactionForm']();
+                });
+
+                $('#{{componentId}}-{{sectionId}}-clear-transaction').off();
+                $('#{{componentId}}-{{sectionId}}-clear-transaction').click(function(e) {
+                    e.preventDefault();
+
+                    dataCollectionSectionForm['funcs']['clearTransactionForm']();
+                });
+
+                $('#{{componentId}}-{{sectionId}}-delete-transaction').off();
+                $('#{{componentId}}-{{sectionId}}-delete-transaction').click(function(e) {
+                    e.preventDefault();
+
+                    var description;
+                    if ($('#{{componentId}}-{{sectionId}}-transaction_description').select2('data')[0]) {
+                        description = $('#{{componentId}}-{{sectionId}}-transaction_description').select2('data')[0].text;
+                    } else {
+                        description = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
+                    }
+
+                    Swal.fire({
+                        html                        : '<span class="text-danger">Delete transaction ' + description + '<span>',
+                        icon                        : 'question',
+                        background                  : 'rgba(0,0,0,.8)',
+                        backdrop                    : 'rgba(0,0,0,.6)',
+                        buttonsStyling              : false,
+                        confirmButtonText           : 'Proceed',
+                        customClass                 : {
+                            'confirmButton'             : 'btn btn-danger text-uppercase',
+                            'cancelButton'              : 'ml-2 btn btn-secondary text-uppercase',
+                        },
+                        showCancelButton            : true,
+                        keydownListenerCapture      : true,
+                        allowOutsideClick           : true,
+                        allowEscapeKey              : true,
+                        didOpen                     : function() {
+                            window['dataCollection'].env.sounds.swalSound.play();
+                        }
+                    }).then((result) => {
+                        if (result.value) {
+                            dataCollectionSectionForm['funcs']['crudAccountTransaction'](null, null, true);
+                        }
+                    });
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-transaction_id'                  : { },
+        '{{componentId}}-{{sectionId}}-transaction_date'                : {
+            dateFormat          : "Y-m-d",
+            altFormat           : "Y-m-d",
+            static              : true,
+            minDate             : "2000-01-01",
+            maxDate             : "today",
+            afterInit: function() {
+                if (dataCollectionSectionForm['vars']['book']['fy_start_date'] !== '') {
+                    dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].config.minDate =
+                        dataCollectionSectionForm['vars']['book']['fy_start_date'];
+                }
+                dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate('today');
+
+                $('#{{componentId}}-{{sectionId}}-transaction_date-today').off();
+                $('#{{componentId}}-{{sectionId}}-transaction_date-today').click(function(e) {
+                    e.preventDefault();
+
+                    dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-transaction_date']['flatpickr'].setDate('today');
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-transaction_seq'                 : { },
+        '{{componentId}}-{{sectionId}}-transaction_description'         : {
+            placeholder : 'SELECT OR ENTER NEW DESCRIPTION',
+            afterInit: function() {
+                $($('#{{componentId}}-{{sectionId}}-transaction_description').siblings('.select2')[0]).focusin(function() {
+                    $('#{{componentId}}-{{sectionId}}-transaction_description').select2('open');
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-transaction_type'                : {
+            placeholder : 'SELECT TRANSACTION TYPE',
+            afterInit: function() {
+                $('#{{componentId}}-{{sectionId}}-transaction_type').on('select2:select', function(e) {
+                    if (e.params.data.id === 'dr') {
+                        $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('FROM ACCOUNT');
+                    } else if (e.params.data.id === 'cr') {
+                        $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('TO ACCOUNT');
+                    }
+                });
+
+                $($('#{{componentId}}-{{sectionId}}-transaction_type').siblings('.select2')[0]).focusin(function() {
+                    $('#{{componentId}}-{{sectionId}}-transaction_type').select2('open');
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-transaction_attachments'         : {
+            placeholder: 'SELECT UPLOADED ATTACHMENT',
+            afterInit: function() {
+                //
+            }
+        },
+        '{{componentId}}-{{sectionId}}-accounts_list'                   : {
+            placeholder : 'SELECT ACCOUNT',
+            afterInit: function() {
+                $($('#{{componentId}}-{{sectionId}}-accounts_list').siblings('.select2')[0]).focusin(function() {
+                    $('#{{componentId}}-{{sectionId}}-accounts_list').select2('open');
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-transaction_amount'              : { },
+        '{{componentId}}-{{sectionId}}-account_name'                    : { },
+        '{{componentId}}-{{sectionId}}-account_path'                    : { },
+        '{{componentId}}-{{sectionId}}-account_balance'                 : { },
+        '{{componentId}}-{{sectionId}}-reconcile_date'                  : {
+            dateFormat          : "Y-m-d",
+            altFormat           : "Y-m-d",
+            static              : true,
+            minDate             : "2000-01-01",
+            maxDate             : "today",
+            onChange: function(selectedDates, dateStr, instance) {
+                if (dateStr !== '') {
+                    if (dataCollectionSectionForm['vars']['activeAccountBalances'][dateStr]) {
+                        $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val(dataCollectionSectionForm['vars']['activeAccountBalances'][dateStr]);
+                        dataCollectionSectionForm['funcs']['changeReconcileStatus']();
+                    }
+                }
+            },
+            afterInit: function() {
+                if (dataCollectionSectionForm['vars']['book']['fy_start_date'] !== '') {
+                    dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-reconcile_date']['flatpickr'].config.minDate =
+                        dataCollectionSectionForm['vars']['book']['fy_start_date'];
+                }
+                dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-reconcile_date']['flatpickr'].setDate('today');
+
+                $('#{{componentId}}-{{sectionId}}-reconcile_date-today').off();
+                $('#{{componentId}}-{{sectionId}}-reconcile_date-today').click(function(e) {
+                    e.preventDefault();
+
+                    dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-reconcile_date']['flatpickr'].setDate('today', true);
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-balance_to_reconcile'            : {
+            afterInit: function() {
+                $('#{{componentId}}-{{sectionId}}-reconcile-account').click(function(e) {
+                    e.preventDefault();
+
+                    $('#{{componentId}}-{{sectionId}}-reconciled_statement_date').html($('#{{componentId}}-{{sectionId}}-reconcile_date').val());
+                    $('#{{componentId}}-{{sectionId}}-reconciled_ending_balance').html(
+                        dataCollectionSectionForm['vars']['currencySymbol'] +
+                        '<span id="{{componentId}}-{{sectionId}}-reconcile_ending_balance_val">' +
+                            $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val() +
+                        '</span>'
+                    );
+                    $('#{{componentId}}-{{sectionId}}-reconciled_difference').html(
+                        dataCollectionSectionForm['vars']['currencySymbol'] +
+                        '<span id="{{componentId}}-{{sectionId}}-reconcile_ending_balance_val">' +
+                            $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val() +
+                        '</span>'
+                    );
+
+                    $('#{{componentId}}-{{sectionId}}-reconcile-modal-label').html(
+                        '<span class="text-uppercase">RECONCILE ACCOUNT : ' +
+                        dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['name'] +
+                        '</span>'
+                    );
+
+                    $('#{{componentId}}-{{sectionId}}-reconcile-modal').modal('show');
+
+                    $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').off();
+                    $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').click(function(e) {
+                        e.preventDefault();
+
+                        // $(this).attr('disabled', true);
+                        $(this).children('i').attr('hidden', false);
+
+                        dataCollectionSectionForm['funcs']['reconcileTransactions']();
+                    });
+                });
+
+                $('#{{componentId}}-{{sectionId}}-reconcile-modal').on('hide.bs.modal', function (e) {
+                    dataCollectionSectionForm['funcs']['clearReconcileModalData']();
+                    dataCollectionSectionForm['funcs']['changeReconcileStatus']();
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-reconcile_ending_balance'        : { },
+        '{{componentId}}-{{sectionId}}-reconcile_debit_transactions'    : { },
+        '{{componentId}}-{{sectionId}}-reconcile_credit_transactions'   : { },
+        '{{componentId}}-{{sectionId}}-reconciled_statement_date'       : { },
+        '{{componentId}}-{{sectionId}}-reconciled_starting_balance'     : { },
+        '{{componentId}}-{{sectionId}}-reconciled_ending_balance'       : { },
+        '{{componentId}}-{{sectionId}}-reconciled_balance'              : { },
+        '{{componentId}}-{{sectionId}}-reconciled_difference'           : { },
+        '{{componentId}}-{{sectionId}}-split_transactions'              : {
+            afterInit: function() {
+                if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#{{componentId}}-{{sectionId}}-split-transactions-table')) {
+                    dataCollectionSectionForm['vars']['splitTransactionsTable'] = $('#{{componentId}}-{{sectionId}}-split-transactions-table').DataTable({
+                        columns: [
+                            {orderable: false, visible: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false},
+                            {orderable: false}
+                        ],
+                        order: false,
+                        select: {
+                            style: 'single'
+                        }
+                    });
+
+                    dataCollectionSectionForm['vars']['splitTransactionsTable'].on('select', function(e, dt, type, ix) {
+                        var transaction = dt.rows({selected: true}).data()[0];
+                        dataCollectionSectionForm['vars']['activeSplitTransaction'] = transaction;
+                        //eslint-disable-next-line
+                        console.log(dataCollectionSectionForm['vars']['activeSplitTransaction']);
+                        $('#{{componentId}}-{{sectionId}}-split_transaction_id').val(transaction[0]);
+                        $('#{{componentId}}-{{sectionId}}-split_transaction_seq').val(transaction[1]);
+
+                        $('#{{componentId}}-{{sectionId}}-split_transaction_description option').each(function(index, option) {
+                            if ($(option).html() === transaction[2]) {
+                                $('#{{componentId}}-{{sectionId}}-split_transaction_description').val($(option).val()).trigger('change');
+
+                                return;
+                            }
+                        });
+                        $('#{{componentId}}-{{sectionId}}-split_accounts_list').val($($(transaction[3])[0]).data('uuid')).trigger('change');
+
+                        $('#{{componentId}}-{{sectionId}}-split_transaction_amount').val($(transaction[4]).html());
+
+                        $('#{{componentId}}-{{sectionId}}-add-split-transaction').children('i').removeClass('fa-plus').addClass('fa-edit');
+                        $('#{{componentId}}-{{sectionId}}-clone-split-transaction').attr('disabled', false);
+                        $('#{{componentId}}-{{sectionId}}-delete-split-transaction').attr('disabled', false);
+                    });
+
+                    dataCollectionSectionForm['vars']['splitTransactionsTable'].on('deselect', function(e, dt, type, ix) {
+                        dataCollectionSectionForm['vars']['activeSplitTransaction'] = [];
+                        dataCollectionSectionForm['funcs']['clearSplitTransactionForm'](false);
+                    });
+                }
+
+                $('#{{componentId}}-{{sectionId}}-add-split-transaction, #{{componentId}}-{{sectionId}}-clone-split-transaction').off();
+                $('#{{componentId}}-{{sectionId}}-add-split-transaction, #{{componentId}}-{{sectionId}}-clone-split-transaction').click(function(e) {
+                    e.preventDefault();
+
+                    if ($(this)[0].id === '{{componentId}}-{{sectionId}}-clone-split-transaction') {
+                        dataCollectionSectionForm['funcs']['crudAccountTransaction'](null, null, false, true, true);
+                    } else {
+                        dataCollectionSectionForm['funcs']['crudAccountTransaction'](null, null, false, false, true);
+                    }
+                });
+
+                $('#{{componentId}}-{{sectionId}}-clear-split-transaction').off();
+                $('#{{componentId}}-{{sectionId}}-clear-split-transaction').click(function(e) {
+                    e.preventDefault();
+
+                    dataCollectionSectionForm['funcs']['clearSplitTransactionForm']();
+                });
+
+                $('#{{componentId}}-{{sectionId}}-delete-split-transaction').off();
+                $('#{{componentId}}-{{sectionId}}-delete-split-transaction').click(function(e) {
+                    e.preventDefault();
+
+                    var description;
+                    if ($('#{{componentId}}-{{sectionId}}-split_transaction_description').select2('data')[0]) {
+                        description = $('#{{componentId}}-{{sectionId}}-split_transaction_description').select2('data')[0].text;
+                    } else {
+                        description = $('#{{componentId}}-{{sectionId}}-split_transaction_id').val();
+                    }
+
+                    Swal.fire({
+                        html                        : '<span class="text-danger">Delete split transaction ' + description + '<span>',
+                        icon                        : 'question',
+                        background                  : 'rgba(0,0,0,.8)',
+                        backdrop                    : 'rgba(0,0,0,.6)',
+                        buttonsStyling              : false,
+                        confirmButtonText           : 'Proceed',
+                        customClass                 : {
+                            'confirmButton'             : 'btn btn-danger text-uppercase',
+                            'cancelButton'              : 'ml-2 btn btn-secondary text-uppercase',
+                        },
+                        showCancelButton            : true,
+                        keydownListenerCapture      : true,
+                        allowOutsideClick           : true,
+                        allowEscapeKey              : true,
+                        didOpen                     : function() {
+                            window['dataCollection'].env.sounds.swalSound.play();
+                        }
+                    }).then((result) => {
+                        if (result.value) {
+                            dataCollectionSectionForm['funcs']['crudAccountTransaction'](null, null, true, false, true);
+                        }
+                    });
+                });
+            }
+        },
+        '{{componentId}}-{{sectionId}}-split_from_account'              : { },
+        '{{componentId}}-{{sectionId}}-split_transactions_date'         : { },
+        '{{componentId}}-{{sectionId}}-split_total'                     : { },
+        '{{componentId}}-{{sectionId}}-split_transactions_total'        : { },
+        '{{componentId}}-{{sectionId}}-split_transaction_id'            : { },
+        '{{componentId}}-{{sectionId}}-split_transaction_seq'           : { },
+        '{{componentId}}-{{sectionId}}-split_transaction_description'   : {
+            placeholder: 'SELECT OR ENTER NEW DESCRIPTION'
+        },
+        '{{componentId}}-{{sectionId}}-split_accounts_list'             : {
+            placeholder: 'SELECT ACCOUNT'
+        },
+        '{{componentId}}-{{sectionId}}-split_transaction_amount'        : { },
+        '{{componentId}}-{{sectionId}}-status'                          : { },
+        '{{componentId}}-{{sectionId}}-form'                            : {
+            rules: {
+            },
+            messages: {
+            }
+        }
+    });
+
+dataCollectionSection =
+    $.extend(dataCollectionSection['{{componentId}}-{{sectionId}}-accounts_structure'], {
+        afterInit: function() {
+            if (Object.keys(dataCollectionSectionForm['vars']['warnings']).length > 0) {
+                var warningsHtml = '<div class="row text-left"><div class="col">';
+                for (var accountId in dataCollectionSectionForm['vars']['warnings']) {
+                    warningsHtml += '<h6><i class="fa fa-fw fa-info-circle text-danger"></i> ' + dataCollectionSectionForm['vars']['warnings'][accountId] + '</h6>';
+                }
+                warningsHtml += '</div></div>';
+
+                $('.accountDivs').attr('hidden', true);
+                $('#{{componentId}}-{{sectionId}}-account-warnings').html(warningsHtml);
+                $('#{{componentId}}-{{sectionId}}-account-warnings').attr('hidden', false);
+            } else {
+                $('#{{componentId}}-{{sectionId}}-account-noinfo').attr('hidden', false);
+            }
+
+            $('#{{componentId}}-{{sectionId}}-accounts_structure').on('select_node.jstree', function (e, data) {
+                if (data.node.data.type === 'placeholder') {
+                    $('#{{componentId}}-{{sectionId}}-accounts_structure').jstree().deselect_all();
+
+                    return false;
+                }
+
+                dataCollectionSectionForm['vars']['activeAccount'] = data.node.data.uuid;
+
+                //Disable own ID from to/from accounts selection.
+                $('#{{componentId}}-{{sectionId}}-accounts_list option').each(function (i, item) {
+                    if (item.value === data.node.data.uuid) {
+                        $(item).prop("disabled", true);
+                    } else {
+                        $(item).prop("disabled", false);
+                    }
+
+                    $('#{{componentId}}-{{sectionId}}-accounts_list').trigger('change');
+                });
+
+                $('#{{componentId}}-{{sectionId}}-split_accounts_list option').each(function (i, item) {
+                    if (item.value === data.node.data.uuid ||
+                        item.value === 'split'
+                    ) {
+                        $(item).prop("disabled", true);
+                    } else {
+                        $(item).prop("disabled", false);
+                    }
+
+                    $('#{{componentId}}-{{sectionId}}-accounts_list').trigger('change');
+                });
+
+                $('.accountDivs').attr('hidden', true);
+                $('#{{componentId}}-{{sectionId}}-account-div').attr('hidden', false);
+                $('#{{componentId}}-{{sectionId}}-account-loader').attr('hidden', false);
+
+                if (dataCollectionSectionForm['vars']['book']['accounts'][data.node.data.uuid]) {
+                    dataCollectionSectionForm['funcs']['getAccountTransactions']();
+                } else {
+                    var postData = { };
+                    postData[$('#security-token').attr('name')] = $('#security-token').val();
+                    postData['book_id'] = dataCollectionSectionForm['vars']['book']['id'];
+                    postData['uuid'] = data.node.data.uuid;
+                    postData['name'] = data.node.text;
+                    postData['type'] = data.node.data.type;
+                    postData['description'] = data.node.data.description;
+                    postData['balance'] = 0;
+                    postData['reconciled'] = false;
+
+                    $.post('{{links.url("accounting/books/addAccountingAccount")}}', postData, function(response) {
+                        if (response.tokenKey && response.token) {
+                            $("#security-token").attr("name", response.tokenKey);
+                            $("#security-token").val(response.token);
+                        }
+
+                        if (response.responseCode === 0) {
+                            dataCollectionSectionForm['vars']['book']['accounts'][data.node.data.uuid] = response.responseData;
+                            dataCollectionSectionForm['funcs']['getAccountTransactions']();
+                        } else if (response.responseCode === 1) {
+                            $('.accountDivs').attr('hidden', true);
+                            $('#{{componentId}}-{{sectionId}}-account-error').attr('hidden', false);
+                        }
+                    }, 'json');
+                }
+            });
+        }
+    });
+
+$('#body').off('dropzoneInitDone');
+$('#body').on('dropzoneInitDone', function() {
+    if (window['dataCollection']['{{componentId}}']['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-upload_attachments']) {
+        window['dataCollection']['{{componentId}}']['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-upload_attachments']['onSuccess'] = function(file, response) {
+            if (response.responseData && response.responseData.uuid) {
+                var newOption = new Option(response.responseData.org_file_name, response.responseData.uuid, false, false);
+
+                $('#{{componentId}}-{{sectionId}}-transaction_attachments').append(newOption).trigger('change');
+
+                dataCollectionSectionForm['funcs']['crudAccountTransaction'](null, null, false, false, false, response.responseData);
+            }
+        };
+    }
+});
+</script>
