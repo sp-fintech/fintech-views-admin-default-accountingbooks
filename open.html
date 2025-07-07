@@ -117,11 +117,13 @@ dataCollectionSectionForm['vars']['accountsList'] = JSON.parse('{{accountsList}}
 dataCollectionSectionForm['vars']['warnings'] = JSON.parse('{{warnings}}');
 dataCollectionSectionForm['vars']['activeAccount'] = null;
 dataCollectionSectionForm['vars']['activeAccountBalances'] = [];
+dataCollectionSectionForm['vars']['activeAccountUnreconciledBalance'] = 0;
+dataCollectionSectionForm['vars']['activeAccountReconciledBalance'] = 0;
+dataCollectionSectionForm['vars']['activeAccountReconciledDate'] = null;
 dataCollectionSectionForm['vars']['activeTransactions'] = { };
 dataCollectionSectionForm['vars']['activeTransaction'] = [];
 dataCollectionSectionForm['vars']['activeTransactionUUID'] = null;
 dataCollectionSectionForm['vars']['activeSplitTransaction'] = [];
-dataCollectionSectionForm['vars']['unreconcileBalance'] = 0;
 dataCollectionSectionForm['vars']['currencySymbol'] = '{{currencySymbol}}';
 dataCollectionSectionForm['vars']['descriptions'] = { };
 
@@ -147,7 +149,9 @@ dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = nu
         url = '{{links.url("accounting/books/updateAccountingTransaction")}}';
 
         postData['id'] = $($($(row).children('td')[4]).children('span')[0]).data('id');
+        postData['accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
         postData['uuid'] = $($($(row).children('td')[4]).children('span')[0]).data('uuid');
+        postData['is_split'] = false;
         postData['status'] = status;
     } else {
         postData['accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
@@ -170,7 +174,7 @@ dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = nu
                 postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
 
                 if (attachment && attachment.uuid) {
-                    var transactionAttachments = dataCollectionSectionForm['vars']['activeTransactions'][postData['id']]['attachments'];
+                    var transactionAttachments = dataCollectionSectionForm['vars']['activeTransactions']['"' + postData['id'] + '"']['attachments'];
                     postData['attachments'] = [];
 
                     if (Object.keys(transactionAttachments).length > 0) {
@@ -190,9 +194,9 @@ dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = nu
             } else {
                 if (clone) {
                     postData['clone'] = true;
+                    postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
                 }
                 url = '{{links.url("accounting/books/addAccountingTransaction")}}';
-                postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
             }
 
             postData['date'] = $('#{{componentId}}-{{sectionId}}-transaction_date').val();
@@ -254,7 +258,7 @@ dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = nu
         if (response.responseCode === 0) {
             if (response.responseData.transactions) {
                 if (splitTransaction) {
-                    dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['splits'] = response.responseData;
+                    dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['splits'] = response.responseData;
                 } else {
                     dataCollectionSectionForm['vars']['activeTransactions'] = response.responseData.transactions;
                 }
@@ -269,6 +273,8 @@ dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = nu
                     '<span class="text-uppercase changeStatus" data-id="' + postData['id'] + '" data-uuid="' + postData['uuid'] + '" style="cursor: pointer;">' + status + '</span>'
                 );
 
+                dataCollectionSectionForm['vars']['activeTransactions']['"' + postData['id'] + '"']['status'] = status;
+
                 var creditFind = $('#{{componentId}}-{{sectionId}}-reconcile-credit-transactions-table').find('[data-uuid="' + postData['uuid'] + '"]');
                 var debitFind = $('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table').find('[data-uuid="' + postData['uuid'] + '"]');
 
@@ -278,6 +284,7 @@ dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = nu
                     $(debitFind[0]).html(status);
                 }
 
+                dataCollectionSectionForm['funcs']['processAccountReconciledInformation'](response.responseData);
                 dataCollectionSectionForm['funcs']['changeStatus']();
             } else {
                 if (removeAttachment) {
@@ -324,8 +331,12 @@ dataCollectionSectionForm['funcs']['getAccountTransactions'] = function(isSplit 
             if (response.responseData.transactions) {
                 if (!isSplit) {
                     dataCollectionSectionForm['vars']['activeTransactions'] = response.responseData.transactions;
+                }
 
-                    dataCollectionSectionForm['funcs']['processUnreconciledTransactions'](response.responseData);
+                if (response.responseData['balances']) {
+                    dataCollectionSectionForm['vars']['activeAccountBalances'] = response.responseData['balances'];
+                } else {
+                    dataCollectionSectionForm['vars']['activeAccountBalances'] = [];
                 }
 
                 dataCollectionSectionForm['funcs']['processAccountTransactions'](response.responseData, isSplit);
@@ -337,7 +348,7 @@ dataCollectionSectionForm['funcs']['getAccountTransactions'] = function(isSplit 
     }, 'json');
 }
 
-dataCollectionSectionForm['funcs']['processUnreconciledTransactions'] = function(responseData) {
+dataCollectionSectionForm['funcs']['processUnreconciledTransactions'] = function() {
     if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table')) {
         dataCollectionSectionForm['vars']['reconcileDebitTransactionsTable'] = $('#{{componentId}}-{{sectionId}}-reconcile-debit-transactions-table').DataTable({
             columns: [
@@ -430,16 +441,14 @@ dataCollectionSectionForm['funcs']['processUnreconciledTransactions'] = function
     var debitTransactions = [];
     var creditTransactions = [];
 
-    if (Object.keys(responseData.transactions).length > 0) {
-        dataCollectionSectionForm['vars']['activeAccountBalances'] = responseData['balances'];
-
+    if (Object.keys(dataCollectionSectionForm['vars']['activeTransactions']).length > 0) {
         if (dataCollectionSectionForm['vars']['activeAccountBalances'][$('#{{componentId}}-{{sectionId}}-reconcile_date').val()]) {
             $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance')
                 .val(dataCollectionSectionForm['vars']['activeAccountBalances'][$('#{{componentId}}-{{sectionId}}-reconcile_date').val()]);
         }
 
-        for (var unreconciledTransactionArr in responseData.transactions) {
-            var unreconciledTransaction = responseData.transactions[unreconciledTransactionArr];
+        for (var unreconciledTransactionArr in dataCollectionSectionForm['vars']['activeTransactions']) {
+            var unreconciledTransaction = dataCollectionSectionForm['vars']['activeTransactions'][unreconciledTransactionArr];
 
             if (unreconciledTransaction['status'] !== 'r') {
                 var newUnreconciledTransaction = [];
@@ -518,7 +527,7 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
                 // $(mainTransactionAmount).data('error', 'Split transactions total does not match transaction total.');
                 // $('#transaction-errors-text').html('Split transactions total does not match transaction total.');
                 $('#transaction-errors-div').attr('hidden', false);
-                dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['error'] =
+                dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['error'] =
                     'Split transactions total does not match transaction total.';
                     // dataCollectionSectionForm['vars']['splitTransactionsTable'].draw();
             } else if (responseData.balance < parseFloat($('#{{componentId}}-{{sectionId}}-transaction_amount').val())) {
@@ -528,7 +537,7 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
                 // $(mainTransactionAmount).data('error', 'Split transactions total does not match transaction total.');
                 // $('#transaction-errors-text').html('Split transactions total does not match transaction total.');
                 $('#transaction-errors-div').attr('hidden', false);
-                dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['error'] =
+                dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['error'] =
                     'Split transactions total does not match transaction total.';
                     // dataCollectionSectionForm['vars']['splitTransactionsTable'].draw();
             } else {
@@ -537,7 +546,7 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
                 // $(mainTransactionAmount).removeData('error');
                 // $('#transaction-errors-text').html('');
                 $('#transaction-errors-div').attr('hidden', true);
-                dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['error'] = false;
+                dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['error'] = false;
                 // dataCollectionSectionForm['vars']['splitTransactionsTable'].draw();
             }
 
@@ -568,7 +577,7 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
         dataCollectionSectionForm['vars']['splitTransactionsTable'].rows().clear().draw();
 
         if (Object.keys(responseData.transactions).length > 0) {
-            dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['splits'] = responseData;
+            dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['splits'] = responseData;
 
             for (var splitTransactionArr in responseData.transactions) {
                 var splitTransaction = responseData.transactions[splitTransactionArr];
@@ -631,26 +640,13 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
         dataCollectionSectionForm['funcs']['buildAccountsTable']();
 
         $('#{{componentId}}-{{sectionId}}-account-info').attr('hidden', false);
-        if (dataCollectionSectionForm['vars']['unreconcileBalance'] > 0) {
-            $('#{{componentId}}-{{sectionId}}-balance_to_reconcile')
-                .html(
-                    dataCollectionSectionForm['vars']['currencySymbol'] +
-                    '<span class="text-danger">' +
-                    dataCollectionSectionForm['vars']['unreconcileBalance'] +
-                    '</span>'
-                );
 
-            $('#reconcile-div').attr('hidden', false);
-        } else {
-            $('#{{componentId}}-{{sectionId}}-balance_to_reconcile').html(dataCollectionSectionForm['vars']['currencySymbol'] + dataCollectionSectionForm['vars']['unreconcileBalance']);
-            $('#reconcile-div').attr('hidden', true);
-        }
+        dataCollectionSectionForm['funcs']['processAccountReconciledInformation'](responseData);
+
         $('#{{componentId}}-{{sectionId}}-account-div').attr('hidden', false);
         $('#{{componentId}}-{{sectionId}}-account-info').attr('hidden', false);
         $('#{{componentId}}-{{sectionId}}-account-transactions').attr('hidden', false);
         $('#{{componentId}}-{{sectionId}}-account-transactions-form').attr('hidden', false);
-
-        dataCollectionSectionForm['funcs']['changeStatus']();
 
         dataCollectionSectionForm['funcs']['clearTransactionForm']();
     }
@@ -689,21 +685,47 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
     }
 }
 
+dataCollectionSectionForm['funcs']['processAccountReconciledInformation'] = function(responseData) {
+    if (responseData.unreconciled_balance !== 'undefined' && responseData.unreconciled_balance > 0) {
+        dataCollectionSectionForm['vars']['activeAccountUnreconciledBalance'] = responseData.unreconciled_balance;
+
+        $('#{{componentId}}-{{sectionId}}-balance_to_reconcile')
+            .html(
+                dataCollectionSectionForm['vars']['currencySymbol'] +
+                '<span class="text-danger">' +
+                dataCollectionSectionForm['vars']['activeAccountUnreconciledBalance'] +
+                '</span>'
+            );
+
+        dataCollectionComponent['{{componentId}}-{{sectionId}}']['{{componentId}}-{{sectionId}}-reconcile_date']['flatpickr'].setDate('today');
+        $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance')
+            .val(dataCollectionSectionForm['vars']['activeAccountBalances'][$('#{{componentId}}-{{sectionId}}-reconcile_date').val()]);
+
+        $('#reconcile-div').attr('hidden', false);
+    } else {
+        dataCollectionSectionForm['vars']['activeAccountUnreconciledBalance'] = 0;
+        $('#{{componentId}}-{{sectionId}}-balance_to_reconcile').html(dataCollectionSectionForm['vars']['currencySymbol'] + 0);
+        $('#reconcile-div').attr('hidden', true);
+    }
+
+    if (responseData.last_reconciled_balance !== 'undefined') {
+        dataCollectionSectionForm['vars']['activeAccountReconciledBalance'] = responseData.last_reconciled_balance;
+    }
+    if (responseData.last_reconciled_date) {
+        dataCollectionSectionForm['vars']['activeAccountReconciledDate'] = responseData.last_reconciled_date
+    }
+}
+
 dataCollectionSectionForm['funcs']['buildAccountsTable'] = function() {
     var transactions = [];
 
     $('#{{componentId}}-{{sectionId}}-account-transactions-table tbody').empty();
     dataCollectionSectionForm['vars']['accountTransactionsTable'].rows().clear().draw();
-    //eslint-disable-next-line
-    console.log(dataCollectionSectionForm['vars']['activeTransactions']);
+
     if (Object.keys(dataCollectionSectionForm['vars']['activeTransactions']).length > 0) {
         for (var transactionArr in dataCollectionSectionForm['vars']['activeTransactions']) {
             var transaction = dataCollectionSectionForm['vars']['activeTransactions'][transactionArr];
             var newTransaction = [];
-
-            if (transaction['status'] !== 'r') {
-                dataCollectionSectionForm['vars']['unreconcileBalance'] += transaction['amount'];
-            }
 
             newTransaction.push(transaction['id']);
 
@@ -751,6 +773,8 @@ dataCollectionSectionForm['funcs']['buildAccountsTable'] = function() {
         }
 
         dataCollectionSectionForm['vars']['accountTransactionsTable'].rows.add(transactions).draw();
+
+        dataCollectionSectionForm['funcs']['changeStatus']();
     }
 }
 
@@ -760,8 +784,8 @@ dataCollectionSectionForm['funcs']['buildAttachmentsSelect'] = function() {
     $('#{{componentId}}-{{sectionId}}-download-attachment').addClass('disabled');
     $('#{{componentId}}-{{sectionId}}-download-attachment').attr('href', '#');
 
-    if (dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]) {
-        var transaction = dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()];
+    if (dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']) {
+        var transaction = dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"'];
 
         if (transaction['attachments'] && Object.keys(transaction['attachments']).length > 0) {
             for (var attachment in transaction['attachments']) {
@@ -773,10 +797,10 @@ dataCollectionSectionForm['funcs']['buildAttachmentsSelect'] = function() {
             $('#{{componentId}}-{{sectionId}}-transaction_attachments').val(0).trigger('change');
         }
 
-        if (dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['attachments']) {
+        if (dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['attachments']) {
             $('#{{componentId}}-{{sectionId}}-attachments').html(
                 '<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (' +
-                Object.keys(dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]['attachments']).length +
+                Object.keys(dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['attachments']).length +
                 ')'
             )
         } else {
@@ -785,7 +809,24 @@ dataCollectionSectionForm['funcs']['buildAttachmentsSelect'] = function() {
     }
 }
 
-dataCollectionSectionForm['funcs']['changeStatus'] = function() {
+dataCollectionSectionForm['funcs']['changeStatus'] = function(reconciled = false) {
+    if (reconciled) {
+        if (Object.keys(dataCollectionSectionForm['vars']['activeTransactions']).length > 0) {
+            for (var reconciledTransactionArr in dataCollectionSectionForm['vars']['activeTransactions']) {
+                if (dataCollectionSectionForm['vars']['activeTransactions'][reconciledTransactionArr]['status'] === 'r') {
+                    var reconciledTransactionStatus = $('#{{componentId}}-{{sectionId}}-account-transactions-table').find('[data-uuid="' +
+                        dataCollectionSectionForm['vars']['activeTransactions'][reconciledTransactionArr]['uuid'] + '"]');
+
+                    if (reconciledTransactionStatus.length === 1) {
+                        $($(reconciledTransactionStatus[0])).html('r');
+                    }
+                }
+            }
+        }
+
+        return;
+    }
+
     $('.changeStatus').off();
     $('.changeStatus').click(function(e) {
         e.preventDefault();
@@ -793,14 +834,55 @@ dataCollectionSectionForm['funcs']['changeStatus'] = function() {
         var status = $(this).html();
 
         if (status === 'r') {
-            return;
-        } else if (status === 'n') {
-            status = 'c';
-        } else if (status === 'c') {
-            status = 'n'
-        }
+            var id = $(this).data('id');
 
-        dataCollectionSectionForm['funcs']['crudAccountTransaction']($(this).parents('tr'), status);
+            Swal.fire({
+                title                       : '<span class="text-danger"> Unreconcile Transaction?</span>',
+                icon                        : 'question',
+                background                  : 'rgba(0,0,0,.8)',
+                backdrop                    : 'rgba(0,0,0,.6)',
+                buttonsStyling              : false,
+                confirmButtonText           : 'Unreconcile',
+                customClass                 : {
+                    'confirmButton'             : 'btn btn-danger text-uppercase',
+                    'cancelButton'              : 'ml-2 btn btn-secondary text-uppercase',
+                },
+                showCancelButton            : true,
+                keydownListenerCapture      : true,
+                allowOutsideClick           : true,
+                allowEscapeKey              : true,
+                didOpen                     : function() {
+                    window['dataCollection'].env.sounds.swalSound.play();
+                }
+            }).then((result) => {
+                if (result.value) {
+                    status = 'n';
+
+                    dataCollectionSectionForm['funcs']['crudAccountTransaction']($(this).parents('tr'), status);
+
+                    if (dataCollectionSectionForm['vars']['activeTransactions']['"' + id + '"']) {
+                        dataCollectionSectionForm['vars']['activeAccountUnreconciledBalance'] =
+                            dataCollectionSectionForm['vars']['activeAccountUnreconciledBalance'] + dataCollectionSectionForm['vars']['activeTransactions']['"' + id + '"']['amount'];
+
+                        $('#{{componentId}}-{{sectionId}}-balance_to_reconcile')
+                            .html(
+                                dataCollectionSectionForm['vars']['currencySymbol'] +
+                                '<span class="text-danger">' +
+                                dataCollectionSectionForm['vars']['activeAccountUnreconciledBalance'] +
+                                '</span>'
+                            );
+                    }
+                }
+            });
+        } else {
+            if (status === 'n') {
+                status = 'c';
+            } else if (status === 'c') {
+                status = 'n'
+            }
+
+            dataCollectionSectionForm['funcs']['crudAccountTransaction']($(this).parents('tr'), status);
+        }
     });
 }
 
@@ -820,8 +902,8 @@ dataCollectionSectionForm['funcs']['changeReconcileStatus'] = function(reset = f
     }
 
     var endingBalance = parseFloat($('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val());
-    var difference = parseFloat($('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val());
-    var reconciledBalance = 0;
+    var difference = parseFloat($($('#{{componentId}}-{{sectionId}}-reconciled_difference').children('span')).html());
+    var reconciledBalance = parseFloat(dataCollectionSectionForm['vars']['activeAccountReconciledBalance']);
     var reconciledBalanceText, differenceText;
 
     $('.changeReconcileStatus').off();
@@ -862,12 +944,12 @@ dataCollectionSectionForm['funcs']['changeReconcileStatus'] = function(reset = f
             $(this).html('R');
         }
 
-        if (reconciledBalance < 0) {
+        if (reconciledBalance !== endingBalance) {
             reconciledBalanceText = 'danger';
         } else {
-            reconciledBalanceText = 'primary';
+            reconciledBalanceText = 'success';
         }
-        if (difference < 0) {
+        if (difference !== 0) {
             differenceText = 'danger';
         } else {
             differenceText = 'primary';
@@ -906,6 +988,7 @@ dataCollectionSectionForm['funcs']['clearReconcileModalData'] = function() {
     $('#{{componentId}}-{{sectionId}}-reconciled_balance').html('');
     $('#{{componentId}}-{{sectionId}}-reconciled_difference').html('');
     $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').attr('disabled', true);
+    $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').children('i').attr('hidden', true);
 }
 
 dataCollectionSectionForm['funcs']['reconcileTransactions'] = function() {
@@ -943,13 +1026,19 @@ dataCollectionSectionForm['funcs']['reconcileTransactions'] = function() {
         }
 
         if (response.responseCode === 0) {
+            dataCollectionSectionForm['funcs']['clearReconcileModalData']();
+
+            if (response.responseData.transactions) {
+                dataCollectionSectionForm['vars']['activeTransactions'] = response.responseData.transactions;
+                dataCollectionSectionForm['funcs']['changeStatus'](true);
+            }
+            dataCollectionSectionForm['funcs']['processAccountReconciledInformation'](response.responseData);
+
             $('#{{componentId}}-{{sectionId}}-reconcile-modal').modal('hide');
-
-            $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').children('i').attr('hidden', true);
-
-            dataCollectionSectionForm['funcs']['processAccountTransactions'](response.responseData);
         } else if (response.responseCode === 1) {
             paginatedPNotify('error', {text : response.responseMessage});
+
+            $('#{{componentId}}-{{sectionId}}-modal-reconcile-account').children('i').attr('hidden', true);
         }
     }, 'json');
 }
@@ -1130,24 +1219,23 @@ dataCollectionSection =
                         $('#{{componentId}}-{{sectionId}}-clone-transaction').attr('disabled', false);
                         $('#{{componentId}}-{{sectionId}}-delete-transaction').attr('disabled', false);
 
-                        if (dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]) {
-                            if (dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['attachments']) {
+                        if (dataCollectionSectionForm['vars']['activeTransactions']['"' + transaction[0] + '"']) {
+                            if (dataCollectionSectionForm['vars']['activeTransactions']['"' + transaction[0] + '"']['attachments']) {
                                 $('#{{componentId}}-{{sectionId}}-attachments').html(
                                     '<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (' +
-                                    Object.keys(dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['attachments']).length +
+                                    Object.keys(dataCollectionSectionForm['vars']['activeTransactions']['"' + transaction[0] + '"']['attachments']).length +
                                     ')'
                                 );
                             } else {
                                 $('#{{componentId}}-{{sectionId}}-attachments').html('<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (0)');
                             }
-                            //eslint-disable-next-line
-                            console.log(dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]);
-                            if (dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['splits'] &&
-                                dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['splits']['transactions']
+
+                            if (dataCollectionSectionForm['vars']['activeTransactions']['"' + transaction[0] + '"']['splits'] &&
+                                dataCollectionSectionForm['vars']['activeTransactions']['"' + transaction[0] + '"']['splits']['transactions']
                             ) {
                                 $('#{{componentId}}-{{sectionId}}-split-transaction').html(
                                     '<i class="fas fa-fw fa-list-ol"></i> SPLIT TRANSACTION (' +
-                                    Object.keys(dataCollectionSectionForm['vars']['activeTransactions'][transaction[0]]['splits']['transactions']).length +
+                                    Object.keys(dataCollectionSectionForm['vars']['activeTransactions']['"' + transaction[0] + '"']['splits']['transactions']).length +
                                     ')'
                                 );
                             } else {
@@ -1179,10 +1267,8 @@ dataCollectionSection =
                 $('#{{componentId}}-{{sectionId}}-split-transaction').click(function(e) {
                     e.preventDefault();
 
-                    //eslint-disable-next-line
-                    console.log($('#{{componentId}}-{{sectionId}}-transaction_id').val(), dataCollectionSectionForm['vars']['activeTransactions']);
-                    if (dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()]) {
-                        var transaction = dataCollectionSectionForm['vars']['activeTransactions'][$('#{{componentId}}-{{sectionId}}-transaction_id').val()];
+                    if (dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']) {
+                        var transaction = dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"'];
 
                         if (transaction['has_splits']) {
                             if (transaction['splits'] && transaction['splits']['transactions']) {
@@ -1392,17 +1478,37 @@ dataCollectionSection =
                     e.preventDefault();
 
                     $('#{{componentId}}-{{sectionId}}-reconciled_statement_date').html($('#{{componentId}}-{{sectionId}}-reconcile_date').val());
+
+                    $('#{{componentId}}-{{sectionId}}-reconciled_starting_balance').html(
+                        dataCollectionSectionForm['vars']['currencySymbol'] +
+                        '<span class="text-primary">' +
+                        dataCollectionSectionForm['vars']['activeAccountReconciledBalance'] +
+                        '</span>'
+                    );
+
                     $('#{{componentId}}-{{sectionId}}-reconciled_ending_balance').html(
                         dataCollectionSectionForm['vars']['currencySymbol'] +
                         '<span id="{{componentId}}-{{sectionId}}-reconcile_ending_balance_val">' +
                             $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val() +
                         '</span>'
                     );
-                    $('#{{componentId}}-{{sectionId}}-reconciled_difference').html(
+
+                    $('#{{componentId}}-{{sectionId}}-reconciled_balance').html(
                         dataCollectionSectionForm['vars']['currencySymbol'] +
-                        '<span id="{{componentId}}-{{sectionId}}-reconcile_ending_balance_val">' +
-                            $('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val() +
+                        '<span class="text-primary">' +
+                        dataCollectionSectionForm['vars']['activeAccountReconciledBalance'] +
                         '</span>'
+                    );
+
+                    var difference =
+                        parseFloat($('#{{componentId}}-{{sectionId}}-reconcile_ending_balance').val()) -
+                            parseFloat(dataCollectionSectionForm['vars']['activeAccountReconciledBalance']);
+
+                    $('#{{componentId}}-{{sectionId}}-reconciled_difference').html(
+                            dataCollectionSectionForm['vars']['currencySymbol'] +
+                            '<span class="text-danger">' +
+                            difference +
+                            '</span>'
                     );
 
                     $('#{{componentId}}-{{sectionId}}-reconcile-modal-label').html(
@@ -1410,6 +1516,8 @@ dataCollectionSection =
                         dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['name'] +
                         '</span>'
                     );
+
+                    dataCollectionSectionForm['funcs']['processUnreconciledTransactions']();
 
                     $('#{{componentId}}-{{sectionId}}-reconcile-modal').modal('show');
 
@@ -1458,8 +1566,7 @@ dataCollectionSection =
                     dataCollectionSectionForm['vars']['splitTransactionsTable'].on('select', function(e, dt, type, ix) {
                         var transaction = dt.rows({selected: true}).data()[0];
                         dataCollectionSectionForm['vars']['activeSplitTransaction'] = transaction;
-                        //eslint-disable-next-line
-                        console.log(dataCollectionSectionForm['vars']['activeSplitTransaction']);
+
                         $('#{{componentId}}-{{sectionId}}-split_transaction_id').val(transaction[0]);
                         $('#{{componentId}}-{{sectionId}}-split_transaction_seq').val(transaction[1]);
 
@@ -1626,7 +1733,8 @@ dataCollectionSection =
                     postData['type'] = data.node.data.type;
                     postData['description'] = data.node.data.description;
                     postData['balance'] = 0;
-                    postData['reconciled'] = false;
+                    postData['last_reconciled_date'] = null;
+                    postData['last_reconciled_balance'] = 0;
 
                     $.post('{{links.url("accounting/books/addAccountingAccount")}}', postData, function(response) {
                         if (response.tokenKey && response.token) {
