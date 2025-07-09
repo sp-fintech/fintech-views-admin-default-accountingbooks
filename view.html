@@ -1,11 +1,18 @@
 {% if book['id'] is defined %}
     {% set bookId = book['id'] %}
-    {% set title = 'Book (' ~ book['name'] ~ ')' %}
+    {% set title = 'Book : ' ~ book['name'] %}
 {% else %}
     {% set bookId = '' %}
     {% set title = 'New Book' %}
 {% endif %}
 {% if mode == 'open' %}
+    {% set bookCard = 'info' %}
+    {% if book['status'] == 'closed' %}
+        {% set bookCard = 'warning' %}
+    {% endif %}
+    {% if book['fy_start_date'] != '' and book['fy_end_date'] != '' %}
+        {% set title = title ~ ' (' ~ book['fy_start_date'] ~ ':' ~ book['fy_end_date'] ~ ')' %}
+    {% endif %}
     {{adminltetags.useTag('content',
         [
             'component'                     : component,
@@ -16,7 +23,7 @@
             'contentType'                   : 'sectionWithForm',
             'cardHeader'                    : true,
             'cardFooter'                    : true,
-            'cardType'                      : 'info',
+            'cardType'                      : bookCard,
             'cardIcon'                      : 'book-open',
             'cardTitle'                     : title,
             'cardAdditionalClass'           : 'rounded-0',

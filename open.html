@@ -76,6 +76,7 @@
     </div>
 </div>
 {% set accountsStructure = json_encode(book['accounts_hierarchy'], 16) %}
+{% set accountsList = json_encode(accountsList, 16) %}
 {% set warnings = json_encode(warnings, 16) %}
 {% set book = json_encode(book, 16) %}
 <script>
@@ -157,14 +158,16 @@ dataCollectionSectionForm['funcs']['crudAccountTransaction'] = function(row = nu
         postData['accounts_uuid'] = dataCollectionSectionForm['vars']['activeAccount'];
 
         if (splitTransaction) {
-            if ($('#{{componentId}}-{{sectionId}}-split_transaction_id').val() !== '' && !clone) {
+            if ($('#{{componentId}}-{{sectionId}}-split_transaction_id').val() !== '') {
                 url = '{{links.url("accounting/books/updateAccountingTransaction")}}';
                 postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
                 postData['split_id'] = $('#{{componentId}}-{{sectionId}}-split_transaction_id').val();
-            } else {
+
                 if (clone) {
                     postData['clone'] = true;
+                    url = '{{links.url("accounting/books/addAccountingTransaction")}}';
                 }
+            } else {
                 url = '{{links.url("accounting/books/addAccountingTransaction")}}';
                 postData['id'] = $('#{{componentId}}-{{sectionId}}-transaction_id').val();
             }
@@ -578,7 +581,8 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
 
         if (Object.keys(responseData.transactions).length > 0) {
             dataCollectionSectionForm['vars']['activeTransactions']['"' + $('#{{componentId}}-{{sectionId}}-transaction_id').val() + '"']['splits'] = responseData;
-
+            //eslint-disable-next-line
+            console.log(responseData.transactions);
             for (var splitTransactionArr in responseData.transactions) {
                 var splitTransaction = responseData.transactions[splitTransactionArr];
                 var newSplitTransaction = [];
@@ -593,10 +597,32 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
 
                 newSplitTransaction.push(splitTransaction['description']);
                 if (!dataCollectionSectionForm['vars']['descriptions'][splitTransaction['description']]) {
-                    dataCollectionSectionForm['vars']['descriptions'][splitTransaction['description']] = {'id':splitTransaction['id'], 'description' : splitTransaction['description']};
+                    dataCollectionSectionForm['vars']['descriptions'][splitTransaction['description']] =
+                        {
+                            'id' : splitTransaction['id'],
+                            'description' : splitTransaction['description']
+                        };
+
+                    if ($('#{{componentId}}-{{sectionId}}-transaction_type').val() === 'dr') {
+                        dataCollectionSectionForm['vars']['descriptions'][splitTransaction['description']]['account'] = splitTransaction['cr_accounts_uuid'];
+                    } else if ($('#{{componentId}}-{{sectionId}}-transaction_type').val() === 'cr') {
+                        dataCollectionSectionForm['vars']['descriptions'][splitTransaction['description']]['account'] = splitTransaction['dr_accounts_uuid'];
+                    }
                 }
 
-                newSplitTransaction.push('<span data-uuid="' + splitTransaction['dr_accounts_uuid'] + '">' + dataCollectionSectionForm['vars']['accountsList'][splitTransaction['dr_accounts_uuid']]['path'] + '</span>');
+                if ($('#{{componentId}}-{{sectionId}}-transaction_type').val() === 'dr') {
+                    newSplitTransaction.push(
+                        '<span data-uuid="' +
+                            splitTransaction['cr_accounts_uuid'] + '">' + dataCollectionSectionForm['vars']['accountsList'][splitTransaction['cr_accounts_uuid']]['path'] +
+                        '</span>'
+                    );
+                } else if ($('#{{componentId}}-{{sectionId}}-transaction_type').val() === 'cr') {
+                    newSplitTransaction.push(
+                        '<span data-uuid="' +
+                            splitTransaction['dr_accounts_uuid'] + '">' + dataCollectionSectionForm['vars']['accountsList'][splitTransaction['dr_accounts_uuid']]['path'] +
+                        '</span>'
+                    );
+                }
 
                 newSplitTransaction.push('<span class="text-primary splitTransactionAmount">' + splitTransaction['amount'] + '</span>');
 
@@ -632,7 +658,10 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
             }
         }
         $('.accountDivs').attr('hidden', true);
-        $('#{{componentId}}-{{sectionId}}-account_name').html(dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['name']);
+        $('#{{componentId}}-{{sectionId}}-account_name')
+            .html(dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['name'] +
+                  ' (' + dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['type'] + ')'
+            );
         $('#{{componentId}}-{{sectionId}}-account_path').html(dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['path']);
 
         dataCollectionSectionForm['vars']['descriptions'] = { };
@@ -1060,6 +1089,7 @@ dataCollectionSectionForm['funcs']['clearTransactionForm'] = function(focus = tr
         $('#{{componentId}}-{{sectionId}}-transaction_seq').focus();
     }
     $('#{{componentId}}-{{sectionId}}-accounts_list').attr('disabled', false);
+    $('#{{componentId}}-{{sectionId}}-transaction_type').attr('disabled', false);
     $('#{{componentId}}-{{sectionId}}-attachments').html('<i class="fas fa-fw fa-paperclip"></i> ATTACHMENTS (0)');
     $('#{{componentId}}-{{sectionId}}-split-transaction').html('<i class="fas fa-fw fa-list-ol"></i> SPLIT TRANSACTION (0)');
     $('#transaction-errors-div').attr('hidden', true);
@@ -1175,6 +1205,7 @@ dataCollectionSection =
 
                         if ($($(transaction[4])[0]).data('uuid') === 'split') {
                             $('#{{componentId}}-{{sectionId}}-accounts_list').attr('disabled', true);
+                            $('#{{componentId}}-{{sectionId}}-transaction_type').attr('disabled', true);
                         }
 
                         if (transaction[6] !== '') {//Debit
@@ -1190,9 +1221,8 @@ dataCollectionSection =
                                 $('#transaction-errors-div').attr('hidden', true);
 
                             }
-                            $('#{{componentId}}-{{sectionId}}-split_from_account').html(
-                                dataCollectionSectionForm['vars']['accountsList'][$($(transaction[4])[0]).data('uuid')]['path']
-                            );
+
+                            $('#{{componentId}}-{{sectionId}}-split_from_account').siblings('label').html('TO ACCOUNT');
                             $('#{{componentId}}-{{sectionId}}-split_total').html(dataCollectionSectionForm['vars']['currencySymbol'] + transaction[6]);
                         } else if (transaction[7] !== '') {//Credit
                             $('#{{componentId}}-{{sectionId}}-accounts_list').siblings('label').html('TO ACCOUNT');
@@ -1207,11 +1237,14 @@ dataCollectionSection =
                                 $('#transaction-errors-div').attr('hidden', true);
 
                             }
-                            $('#{{componentId}}-{{sectionId}}-split_from_account').html(
-                                dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['path']
-                            );
+
+                            $('#{{componentId}}-{{sectionId}}-split_from_account').siblings('label').html('FROM ACCOUNT');
                             $('#{{componentId}}-{{sectionId}}-split_total').html(dataCollectionSectionForm['vars']['currencySymbol'] + transaction[7]);
                         }
+
+                        $('#{{componentId}}-{{sectionId}}-split_from_account').html(
+                            dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['path']
+                        );
 
                         $('#{{componentId}}-{{sectionId}}-add-transaction').children('i').removeClass('fa-plus').addClass('fa-edit');
                         $('#{{componentId}}-{{sectionId}}-attachments').attr('disabled', false);

@@ -3,6 +3,7 @@
     {% set bookId = book['id'] %}
     {% set bookName = book['name'] %}
     {% set bookUser = book['user_id'] %}
+    {% set bookStatus = book['status'] %}
     {% set bookDescription = book['description'] %}
     {% set bookStartDate = book['fy_start_date'] %}
     {% set bookEndDate = book['fy_end_date'] %}
@@ -12,6 +13,7 @@
     {% set bookId = '' %}
     {% set bookName = '' %}
     {% set bookUser = '' %}
+    {% set bookStatus = 'open' %}
     {% set bookDescription = '' %}
     {% set bookStartDate = '' %}
     {% set bookEndDate = '' %}
@@ -91,6 +93,44 @@
                     ]
                 )}}
             </div>
+            {% if book['id'] is defined %}
+                <div class="col">
+                    {{adminltetags.useTag('fields',
+                        [
+                            'component'                      : component,
+                            'componentName'                  : componentName,
+                            'componentId'                    : componentId,
+                            'sectionId'                      : sectionId,
+                            'fieldId'                        : 'status',
+                            'fieldLabel'                     : 'Status',
+                            'fieldType'                      : 'select2',
+                            'fieldHelp'                      : true,
+                            'fieldHelpTooltipContent'        : 'Status',
+                            'fieldRequired'                  : true,
+                            'fieldBazScan'                   : true,
+                            'fieldBazPostOnCreate'           : true,
+                            'fieldBazPostOnUpdate'           : true,
+                            'fieldDataSelect2Options'        :
+                                [
+                                    'open'  :
+                                        [
+                                            'id'    : 'open',
+                                            'name'  : 'OPEN'
+                                        ],
+                                    'closed'  :
+                                        [
+                                            'id'    : 'closed',
+                                            'name'  : 'CLOSED'
+                                        ]
+                                ],
+                            'fieldDataSelect2OptionsKey'     : 'id',
+                            'fieldDataSelect2OptionsValue'   : 'name',
+                            'fieldDataSelect2OptionsArray'   : true,
+                            'fieldDataSelect2OptionsSelected': bookStatus
+                        ]
+                    )}}
+                </div>
+            {% endif %}
         </div>
         <div class="row">
             <div class="col">
@@ -222,10 +262,19 @@ dataCollectionSection =
         '{{componentId}}-{{sectionId}}-user_id'               : {
             placeholder: 'SELECT USER'
         },
+        '{{componentId}}-{{sectionId}}-status'                : {
+            placeholder: 'SELECT STATUS'
+        },
         '{{componentId}}-{{sectionId}}-fy_start_date'         : {
             dateFormat          : "Y-m-d",
             altFormat           : "Y-m-d",
-            static              : true
+            static              : true,
+            onChange: function(selectedDates, dateStr, instance) {
+                if (dateStr !== '') {
+                    dataCollectionSection['{{componentId}}-{{sectionId}}-fy_end_date']['flatpickr'].config.minDate = dateStr;
+                    dataCollectionSection['{{componentId}}-{{sectionId}}-fy_end_date']['flatpickr'].setDate(dateStr);
+                }
+            },
         },
         '{{componentId}}-{{sectionId}}-fy_end_date'           : {
             dateFormat          : "Y-m-d",
@@ -237,6 +286,7 @@ dataCollectionSection =
             placeholder: 'SELECT ACCOUNTS HIERARCHY'
         },
         '{{componentId}}-{{sectionId}}-form' : {
+            ignore      : ':submit, :reset, :image, :disabled, .ignore',
             rules: {
                 '{{componentId}}-{{sectionId}}-name'                    : 'required',
                 '{{componentId}}-{{sectionId}}-user_id'                 : 'required',
