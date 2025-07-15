@@ -658,10 +658,24 @@ dataCollectionSectionForm['funcs']['processAccountTransactions'] = function(resp
             }
         }
         $('.accountDivs').attr('hidden', true);
-        $('#{{componentId}}-{{sectionId}}-account_name')
-            .html(dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['name'] +
-                  ' (' + dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['type'] + ')'
-            );
+        var accountName = dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['name'];
+        if (dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['type'] === 'Bank') {
+            if (dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['bank_name']) {
+                accountName +=
+                    ' (' + dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['type'] + ':' +
+                    dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['bank_name'] +
+                    ')';
+            } else {
+                accountName +=
+                    ' (' + dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['type'] + ':' +
+                    '<span class="text-danger">Not Linked</span>' +
+                    ')';
+            }
+        } else {
+            accountName +=
+                ' (' + dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['type'] + ')';
+        }
+        $('#{{componentId}}-{{sectionId}}-account_name').html(accountName);
         $('#{{componentId}}-{{sectionId}}-account_path').html(dataCollectionSectionForm['vars']['accountsList'][dataCollectionSectionForm['vars']['activeAccount']]['path']);
 
         dataCollectionSectionForm['vars']['descriptions'] = { };
