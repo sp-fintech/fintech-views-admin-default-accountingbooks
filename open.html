@@ -1428,7 +1428,8 @@ dataCollectionSection =
         '{{componentId}}-{{sectionId}}-transaction_id'                  : { },
         '{{componentId}}-{{sectionId}}-transaction_date'                : {
             dateFormat          : "Y-m-d",
-            altFormat           : "Y-m-d",
+            altFormat           : "d-m-Y",
+            allowInput          : true,
             static              : true,
             minDate             : "2000-01-01",
             maxDate             : "today",
@@ -1492,7 +1493,8 @@ dataCollectionSection =
         '{{componentId}}-{{sectionId}}-account_balance'                 : { },
         '{{componentId}}-{{sectionId}}-reconcile_date'                  : {
             dateFormat          : "Y-m-d",
-            altFormat           : "Y-m-d",
+            altFormat           : "d-m-Y",
+            allowInput          : true,
             static              : true,
             minDate             : "2000-01-01",
             maxDate             : "today",
@@ -1769,7 +1771,9 @@ dataCollectionSection =
                 $('#{{componentId}}-{{sectionId}}-account-div').attr('hidden', false);
                 $('#{{componentId}}-{{sectionId}}-account-loader').attr('hidden', false);
 
-                if (dataCollectionSectionForm['vars']['book']['accounts'][data.node.data.uuid]) {
+                if (dataCollectionSectionForm['vars']['book']['accounts'] &&
+                    dataCollectionSectionForm['vars']['book']['accounts'][data.node.data.uuid]
+                ) {
                     dataCollectionSectionForm['funcs']['getAccountTransactions']();
                 } else {
                     var postData = { };

@@ -267,7 +267,8 @@ dataCollectionSection =
         },
         '{{componentId}}-{{sectionId}}-fy_start_date'         : {
             dateFormat          : "Y-m-d",
-            altFormat           : "Y-m-d",
+            altFormat           : "d-m-Y",
+            allowInput          : true,
             static              : true,
             onChange: function(selectedDates, dateStr, instance) {
                 if (dateStr !== '') {
@@ -278,7 +279,8 @@ dataCollectionSection =
         },
         '{{componentId}}-{{sectionId}}-fy_end_date'           : {
             dateFormat          : "Y-m-d",
-            altFormat           : "Y-m-d",
+            altFormat           : "d-m-Y",
+            allowInput          : true,
             static              : true
         },
         '{{componentId}}-{{sectionId}}-description'           : { },
